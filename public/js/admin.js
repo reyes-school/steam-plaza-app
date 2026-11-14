@@ -3,7 +3,7 @@ import {
   S, VIEWS, ACTIONS, SUBMITS, MODALS, NAV, render, go, api, post, patch, del, put, run, busy, data, pending, invalidate, toast, openModal, closeModal, modalHead,
   esc, ic, badge, seg, pills, cardHead, empty, bar, field, fv, fill, starsHtml, rankMark, avgColor, ava, avaEdit, fileBox, fileLinks, pdfBtn, uploadFile,
   fmtDay, fmtDate, fmtWhen, fmtMonth, fmtNum, fmtSum, fmtMln, fmtAvg, fmtPhone, hm, sName, today, curMonth, addDays, monthShift, wdOf, WD, WDS, MONTHS_S,
-  ROLE_L, ADMINS, STAFF, FINANCE, user, role, settings, periodTimes, tzNow, loadMe, linkTo, pickAndUpload,
+  ROLE_L, ADMINS, STAFF, FINANCE, user, role, settings, periodTimes, tzNow, loadMe, linkTo, pickAndUpload, celebrateOnce, confetti, CUP, mondayOf,
 } from "./core.js";
 import { postCard } from "./common.js";
 
@@ -37,6 +37,11 @@ VIEWS["admin:home"] = {
     if (d === undefined) return pending("/dashboard");
     const c = d.counts, f = d.finance;
     S.me.badges = { unlocks: c.unlocks };
+    const ts = d.topStudents[0], tt = d.topTeachers[0]?.votes || d.topTeachers[0]?.open_lessons ? d.topTeachers[0] : null;
+    if (ts || tt) celebrateOnce(`sp.cele.a${user().id}.${mondayOf(today())}`, { type: "admin-celebrate" });
+    const heroes = ts || tt ? `<section class="card heroes">${cardHead("Maktab qahramonlari", `<button type="button" class="btn sm" data-a="a-cele">${ic("trophy", 16)} Tabriklash</button>`)}<div class="row wrap" style="gap:12px">
+      ${ts ? `<button type="button" class="hero-tile" data-a="go" data-r="student-${ts.id}">${ava(ts, 56)}<div class="col"><span class="xs muted">Hafta o‘quvchisi</span><b>${esc(sName(ts))}</b><span class="small">${esc(ts.class_name || "")} · o‘rtacha ${fmtAvg(ts.avg)}</span></div></button>` : ""}
+      ${tt ? `<button type="button" class="hero-tile" data-a="go" data-r="teacher-${tt.id}">${ava(tt, 56, "t")}<div class="col"><span class="xs muted">Oyning eng yaxshi o‘qituvchisi</span><b>${esc(tt.name)}</b><span class="small">${fmtAvg(tt.score)} ball · ${tt.open_lessons} ochiq dars</span></div></button>` : ""}</div></section>` : "";
     const tile = (label, v, bg, route) => `<button type="button" class="stat" style="background:${bg};border:0;text-align:left" data-a="go" data-r="${route}"><span class="small muted">${label}</span><span class="v">${v}</span></button>`;
     return `<div class="row wrap" style="gap:12px">${tile("O‘quvchilar", c.students, "var(--accent-soft)", "students")}${tile("O‘qituvchilar", c.teachers, "var(--gold-soft)", "teachers")}${tile("Sinflar", c.classes, "var(--info-soft)", "classes")}${tile("Ota-onalar", c.parents, "var(--surface-2)", STAFF.includes(role()) ? "people" : "students")}</div>
       ${c.unlocks && STAFF.includes(role()) ? `<button type="button" class="doc-row" style="border:0;background:var(--warn-soft);color:var(--warn);text-align:left" data-a="go" data-r="unlocks">${ic("key", 18)}<b class="grow">${c.unlocks} ta o‘qituvchi tahrirlash uchun ruxsat so‘ramoqda</b>${ic("chevron", 16)}</button>` : ""}
@@ -44,6 +49,7 @@ VIEWS["admin:home"] = {
         <div class="stat" style="background:var(--accent-soft)"><span class="small muted">Kirim</span><span class="v">${fmtMln(f.income)}</span></div>
         <div class="stat" style="background:var(--gold-soft)"><span class="small muted">Chiqim</span><span class="v">${fmtMln(f.salaries + f.expenses)}</span><span class="xs">oylik ${fmtMln(f.salaries)} · xarajat ${fmtMln(f.expenses)}</span></div>
         <div class="stat" style="background:${f.profit < 0 ? "var(--bad-soft)" : "var(--info-soft)"}"><span class="small muted">Sof foyda</span><span class="v" style="color:${f.profit < 0 ? "var(--bad)" : "inherit"}">${fmtMln(f.profit)}</span></div></div></section>` : ""}
+      ${heroes}
       ${liveBlock()}
       <div class="grid" style="--min:320px">
         <section class="card">${cardHead("Hafta o‘quvchilari", linkTo("Reyting →", "ratings"))}<div class="col" style="gap:4px">${d.topStudents.map((x, i) => `<button type="button" class="rank-row" style="width:100%;text-align:left;background:transparent" data-a="go" data-r="student-${x.id}">${rankMark(i + 1)}${ava(x, 36)}<div class="col grow"><b class="small">${esc(sName(x))}</b><span class="xs muted">${esc(x.class_name || "")}</span></div><b style="color:${avgColor(x.avg)}">${fmtAvg(x.avg)}</b></button>`).join("") || empty("Bu hafta baholar yo‘q")}</div></section>
@@ -51,6 +57,24 @@ VIEWS["admin:home"] = {
       </div>
       ${role() === "owner" && !c.students ? `<section class="card" style="background:var(--gold-soft);border-color:var(--gold)"><h2>Boshlash</h2><span class="small">Tizim bo‘sh. Avval <b>Sinflar va jadval</b> bo‘limida fanlar va sinflarni, keyin o‘qituvchilarni, so‘ng o‘quvchilarni qo‘shing. Sinab ko‘rish uchun <b>Sozlamalar → Demo ma’lumotlar</b>ni yuklashingiz mumkin.</span></section>` : ""}`;
   },
+};
+
+ACTIONS["a-cele"] = () => { openModal({ type: "admin-celebrate" }); confetti(); };
+MODALS["admin-celebrate"] = () => {
+  const d = data("/dashboard"); if (!d) return "";
+  const ts = d.topStudents[0], tt = d.topTeachers[0];
+  return `<div class="col celebrate" style="gap:12px;padding:14px;border-radius:18px">${CUP}<h2 class="big">Maktab qahramonlari!</h2>
+    <div class="row wrap" style="gap:12px;justify-content:center">
+      ${ts ? `<div class="col" style="align-items:center;gap:4px;min-width:150px">${ava(ts, 72)}<span class="chip-title">Hafta o‘quvchisi</span><b>${esc(sName(ts))}</b><span class="small muted">${esc(ts.class_name || "")} · ${fmtAvg(ts.avg)}</span></div>` : ""}
+      ${tt ? `<div class="col" style="align-items:center;gap:4px;min-width:150px">${ava(tt, 72, "t")}<span class="chip-title">Oy o‘qituvchisi</span><b>${esc(tt.name)}</b><span class="small muted">${fmtAvg(tt.score)} ball</span></div>` : ""}</div>
+    <span>Ularni tabriklash uchun yangilik e’lon qilishingiz mumkin — ota-onalar va o‘qituvchilarga bildirishnoma boradi.</span>
+    <div class="row wrap" style="gap:8px;justify-content:center">${STAFF.includes(role()) ? `<button type="button" class="btn" data-a="cele-post">${ic("megaphone", 16)} Tabrik e’lon qilish</button>` : ""}<button type="button" class="btn sec" data-a="close-modal">Yopish</button></div></div>`;
+};
+ACTIONS["cele-post"] = () => {
+  const d = data("/dashboard"); const ts = d?.topStudents[0], tt = d?.topTeachers[0];
+  S.f.ptitle = "Tabriklaymiz! Maktab qahramonlari";
+  S.f.pbody = [ts ? `Hafta o‘quvchisi — ${sName(ts)} (${ts.class_name || ""}), o‘rtacha bahosi ${fmtAvg(ts.avg)}.` : "", tt ? `Oyning eng yaxshi o‘qituvchisi — ${tt.name}.` : "", "Bilim va mehnatingiz bilan faxrlanamiz!"].filter(Boolean).join("\n\n");
+  openModal({ type: "post-new", extra: "news" });
 };
 
 /* ================= students ================= */
@@ -566,7 +590,7 @@ VIEWS["admin:settings"] = {
       <section class="card"><h2>O‘qituvchilar reytingi</h2>
         <form class="stack" style="gap:12px" data-submit="set-rating">${field("ssw", "Ota-onalar bahosining ulushi (%)", { mode: "numeric", hint: "Qolgan qismi — ochiq darslar soni" })}${field("sstarget", "Oyiga nechta ochiq dars to‘liq ball beradi", { mode: "numeric" })}<button type="submit" class="btn" ${busy("sr") ? "disabled" : ""}>Saqlash</button></form></section>
       ${role() === "owner" ? `<section class="card"><h2>Xarajat turlari</h2><form class="stack" style="gap:12px" data-submit="set-cats">${field("sscats", "Har bir qatorda bitta tur", { area: true, rows: 6 })}<button type="submit" class="btn" ${busy("sc2") ? "disabled" : ""}>Saqlash</button></form></section>
-      <section class="card" style="border-color:var(--gold)"><h2>Demo ma’lumotlar</h2><span class="small muted">Sinab ko‘rish uchun 4 sinf, 8 o‘qituvchi, 48 o‘quvchi, 3 haftalik darslar va to‘lovlar yuklanadi. Barcha demo hisoblar paroli: <b>demo1234</b> (o‘qituvchi: +998 90 700 10 01, ota-ona: +998 91 500 00 00). Haqiqiy ishga tushirishdan oldin o‘chirib tashlang.</span>
+      <section class="card" style="border-color:var(--gold)"><h2>Demo ma’lumotlar</h2><span class="small muted">Sinab ko‘rish uchun 4 sinf, 8 o‘qituvchi, 48 o‘quvchi, 3 haftalik darslar va to‘lovlar yuklanadi. Barcha demo hisoblar paroli: <b>demo1234</b> (o‘qituvchi: +998 90 700 10 01 — oyning eng yaxshi o‘qituvchisi; ota-ona: +998 91 500 00 00 — farzandi sinfda 1-o‘rinda; menejer: +998 90 700 00 01; buxgalter: +998 90 700 00 02). Haqiqiy ishga tushirishdan oldin o‘chirib tashlang.</span>
         <div class="row wrap" style="gap:8px"><button type="button" class="btn" data-a="demo" data-v="load" ${busy("demo") ? "disabled" : ""}>Demo ma’lumotlarni yuklash</button><button type="button" class="btn sec" style="color:var(--bad)" data-a="demo" data-v="clear" ${busy("demo") ? "disabled" : ""}>Demo ma’lumotlarni o‘chirish</button></div></section>` : ""}
     </div>`;
   },

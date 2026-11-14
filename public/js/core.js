@@ -309,6 +309,23 @@ export async function download(path, name) {
 }
 export const pdfBtn = (path, name, label = "PDF yuklab olish") => `<button type="button" class="btn sec sm" data-a="pdf" data-v="${esc(path)}" data-n="${esc(name)}" ${busy("dl:" + path) ? "disabled" : ""}>${busy("dl:" + path) ? '<span class="spin" style="width:14px;height:14px"></span>' : ic("download", 16)} ${esc(label)}</button>`;
 
+/* ---------- celebrations ---------- */
+export function confetti() {
+  if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+  const c = document.createElement("canvas"); c.id = "confetti"; document.body.appendChild(c);
+  const ctx = c.getContext("2d"), W = (c.width = innerWidth), H = (c.height = innerHeight);
+  const cols = ["#D5A042", "#F4C95D", "#083F2C", "#2C7A53", "#E8F0FC", "#C98B1E", "#FFFFFF"];
+  const ps = Array.from({ length: 170 }, () => ({ x: W / 2 + (Math.random() - 0.5) * 140, y: H * 0.35, vx: (Math.random() - 0.5) * 13, vy: -Math.random() * 13 - 4, s: 5 + Math.random() * 6, r: Math.random() * 6, vr: (Math.random() - 0.5) * 0.3, c: cols[Math.floor(Math.random() * cols.length)] }));
+  const t0 = performance.now();
+  (function frame(t) { ctx.clearRect(0, 0, W, H); for (const p of ps) { p.vy += 0.32; p.vx *= 0.99; p.x += p.vx; p.y += p.vy; p.r += p.vr; ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.r); ctx.fillStyle = p.c; ctx.fillRect(-p.s / 2, -p.s / 4, p.s, p.s / 2); ctx.restore(); } if (t - t0 < 4200) requestAnimationFrame(frame); else c.remove(); })(t0);
+}
+export const CUP = `<svg class="cup" viewBox="0 0 64 64" aria-hidden="true"><path d="M18 8h28v12a14 14 0 0 1-28 0z" fill="#E7B64E"/><path d="M46 12h8v4a8 8 0 0 1-8 8M18 12h-8v4a8 8 0 0 0 8 8" fill="none" stroke="#C98B1E" stroke-width="3"/><rect x="28" y="34" width="8" height="10" fill="#C98B1E"/><rect x="20" y="44" width="24" height="8" rx="2" fill="#083F2C"/><path d="M32 13l2 4 4.4.6-3.2 3 .8 4.4L32 23l-4 2 .8-4.4-3.2-3 4.4-.6z" fill="#FFF6DD"/></svg>`;
+/** Opens a celebration once per key (stored in this browser). */
+export function celebrateOnce(key, modal) {
+  try { if (localStorage.getItem(key)) return; localStorage.setItem(key, "1"); } catch { return; }
+  if (S.modal) return;
+  setTimeout(() => { S.modal = modal; render(); confetti(); }, 350);
+}
 /* ---------- toast & modal ---------- */
 let toastTimer;
 export function toast(msg) { S.toast = msg; clearTimeout(toastTimer); toastTimer = setTimeout(() => { S.toast = ""; render(); }, 3200); render(); }

@@ -2,7 +2,7 @@
 import {
   S, VIEWS, ACTIONS, MODALS, NAV, render, go, data, pending, openModal, closeModal, modalHead,
   esc, ic, badge, seg, cardHead, empty, bar, starsHtml, rankMark, avgColor, ava, linkTo,
-  fmtDay, fmtWhen, fmtMonth, fmtAvg, fmtPhone, hm, sName, today, addDays, wdOf, WD, settings, periodTimes, tzNow,
+  fmtDay, fmtWhen, fmtMonth, fmtAvg, fmtPhone, hm, sName, today, addDays, wdOf, WD, settings, periodTimes, tzNow, confetti, celebrateOnce, CUP,
 } from "./core.js";
 import { currentKid, kidSwitcher, statsPanel, homeworkPanel, postCard } from "./common.js";
 
@@ -32,31 +32,18 @@ function rankCard(kid) {
   const L = { day: "Bugun", week: "Hafta", month: "Oy" };
   // celebration: first place shown once per period
   for (const p of ["month", "week", "day"]) {
-    if (r[p].rank === 1) {
-      const key = `sp.cele.${kid.id}.${p}.${p === "day" ? today() : p === "week" ? addDays(today(), -((wdOf(today()) + 6) % 7)) : today().slice(0, 7)}`;
-      if (!store.get(key) && !S.modal) { store.set(key, "1"); setTimeout(() => { openModal({ type: "celebrate", id: kid.id, extra: p }); confetti(); }, 300); }
-      break;
-    }
+    if (r[p].rank === 1) { celebrateOnce(`sp.cele.${kid.id}.${p}.${p === "day" ? today() : p === "week" ? addDays(today(), -((wdOf(today()) + 6) % 7)) : today().slice(0, 7)}`, { type: "celebrate", id: kid.id, extra: p }); break; }
   }
   return `<section class="card">${cardHead(`${esc(kid.first_name)} sinfida nechanchi o‘rinda`, linkTo("Reyting →", "ratings"))}<div class="row wrap" style="gap:10px">${["day", "week", "month"].map((p) => { const x = r[p]; const top = x.rank && x.rank <= 3; return `<div class="ranktile ${x.rank === 1 ? "top" : ""}"><span class="xs muted">${L[p]}</span><div class="row" style="gap:8px">${x.rank ? `<span class="big">${x.rank}</span><span class="small muted">/ ${x.total}</span>` : `<span class="big muted">—</span>`}${x.rank === 1 ? ic("trophy", 22) : ""}</div><span class="xs">${x.avg != null ? `o‘rtacha ${fmtAvg(x.avg)}` : "baho yo‘q"}${top ? " · TOP-3" : ""}</span></div>`; }).join("")}</div></section>`;
 }
-const CELE = { day: ["Kun yulduzi!", "Bugun sinfda 1-o‘rinda"], week: ["Hafta qahramoni!", "Bu hafta sinfda 1-o‘rinda"], month: ["Maktab faxri!", "Bu oy sinfda 1-o‘rinda — bo‘lajak prezident!"] };
+const CELE = { day: ["Kun yulduzi!", "bugun sinfda 1-o‘rinda"], week: ["Hafta qahramoni!", "bu hafta sinfda 1-o‘rinda"], month: ["Maktab faxri!", "bu oy sinfda 1-o‘rinda — bo‘lajak prezident"] };
 MODALS.celebrate = (m) => {
   const kid = S.me.children.find((k) => k.id === m.id) || {};
-  const [t, s] = CELE[m.extra] || CELE.day;
-  return `<div class="col celebrate" style="gap:10px;padding:10px;border-radius:18px"><svg class="cup" viewBox="0 0 64 64" aria-hidden="true"><path d="M18 8h28v12a14 14 0 0 1-28 0z" fill="#E7B64E"/><path d="M46 12h8v4a8 8 0 0 1-8 8M18 12h-8v4a8 8 0 0 0 8 8" fill="none" stroke="#C98B1E" stroke-width="3"/><rect x="28" y="34" width="8" height="10" fill="#C98B1E"/><rect x="20" y="44" width="24" height="8" rx="2" fill="#083F2C"/></svg>
-    <span class="chip-title">${esc(kid.first_name || "")}</span><h2 class="big">${t}</h2><span>${esc(kid.first_name || "")} ${s}. Tabriklaymiz!</span><button type="button" class="btn" data-a="close-modal">Rahmat!</button></div>`;
+  const [t, sub] = CELE[m.extra] || CELE.day;
+  return `<div class="col celebrate" style="gap:10px;padding:14px;border-radius:18px">${ava(kid, 84)}${CUP}
+    <span class="chip-title">${ic("trophy2", 14)} 1-o‘rin</span><h2 class="big">${t}</h2><span style="font-size:16px"><b>${esc(kid.first_name || "")}</b> ${sub}! Tabriklaymiz, siz bilan faxrlanamiz.</span>
+    <button type="button" class="btn" data-a="close-modal">Rahmat!</button></div>`;
 };
-function confetti() {
-  if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
-  const c = document.createElement("canvas"); c.id = "confetti"; document.body.appendChild(c);
-  const ctx = c.getContext("2d"), W = (c.width = innerWidth), H = (c.height = innerHeight);
-  const cols = ["#D5A042", "#F4C95D", "#083F2C", "#2C7A53", "#E8F0FC", "#C98B1E", "#FFFFFF"];
-  const ps = Array.from({ length: 160 }, () => ({ x: W / 2 + (Math.random() - 0.5) * 120, y: H * 0.35, vx: (Math.random() - 0.5) * 13, vy: -Math.random() * 13 - 4, s: 5 + Math.random() * 6, r: Math.random() * 6, vr: (Math.random() - 0.5) * 0.3, c: cols[Math.floor(Math.random() * cols.length)] }));
-  const t0 = performance.now();
-  (function frame(t) { ctx.clearRect(0, 0, W, H); for (const p of ps) { p.vy += 0.32; p.vx *= 0.99; p.x += p.vx; p.y += p.vy; p.r += p.vr; ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.r); ctx.fillStyle = p.c; ctx.fillRect(-p.s / 2, -p.s / 4, p.s, p.s / 2); ctx.restore(); } if (t - t0 < 4200) requestAnimationFrame(frame); else c.remove(); })(t0);
-}
-
 VIEWS["parent:home"] = {
   title: () => `${WD[wdOf(today())]}, ${fmtDay(today())}`,
   render() {

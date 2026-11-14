@@ -2,7 +2,7 @@
 import {
   S, VIEWS, ACTIONS, SUBMITS, MODALS, NAV, render, go, api, post, patch, put, run, busy, data, pending, invalidate, toast, openModal, closeModal, modalHead,
   esc, ic, badge, seg, cardHead, empty, bar, field, fv, fill, starsHtml, rankMark, avgColor, ava, fileBox, fileLinks, linkTo,
-  fmtDay, fmtDate, fmtWhen, fmtMonth, fmtAvg, hm, sName, today, curMonth, wdOf, WD, user, settings, periodTimes, tzNow,
+  fmtDay, fmtDate, fmtWhen, fmtMonth, fmtAvg, hm, sName, today, curMonth, wdOf, WD, user, settings, periodTimes, tzNow, celebrateOnce, CUP, confetti,
 } from "./core.js";
 import { reviewItem, postCard } from "./common.js";
 
@@ -22,6 +22,24 @@ function timing(date, period) {
 VIEWS["teacher:today"] = {
   title: () => `Bugun, ${fmtDay(today())}`,
   render() {
+    const tr = data("/ratings/teachers?month=" + curMonth());
+    const me = tr?.rows?.find((x) => x.id === user().id);
+    if (me && me.rank === 1 && (me.votes || me.open_lessons)) celebrateOnce(`sp.cele.t${user().id}.${curMonth()}`, { type: "teacher-celebrate", extra: JSON.stringify(me) });
+    const banner = me && me.rank <= 3 ? `<section class="card" style="background:${me.rank === 1 ? "var(--gold-soft)" : "var(--accent-soft)"};border-color:${me.rank === 1 ? "var(--gold)" : "var(--line)"}"><div class="row">${rankMark(me.rank)}<div class="col grow"><b>${me.rank === 1 ? "Siz oyning eng yaxshi o‘qituvchisisiz!" : `Siz o‘qituvchilar reytingida ${me.rank}-o‘rindasiz`}</b><span class="small muted">${fmtMonth(curMonth())} · ${fmtAvg(me.score)} ball · ${me.stars != null ? fmtAvg(me.stars) + " ★, " : ""}${me.open_lessons} ochiq dars</span></div>${me.rank === 1 ? `<button type="button" class="btn sm" data-a="t-cele">${ic("trophy", 16)}</button>` : ""}</div></section>` : "";
+    return banner + todayBody();
+  },
+};
+ACTIONS["t-cele"] = () => { const tr = data("/ratings/teachers?month=" + curMonth()); const me = tr?.rows?.find((x) => x.id === user().id); if (me) { openModal({ type: "teacher-celebrate", extra: JSON.stringify(me) }); confetti(); } };
+MODALS["teacher-celebrate"] = (m) => {
+  const me = JSON.parse(m.extra || "{}");
+  return `<div class="col celebrate" style="gap:10px;padding:14px;border-radius:18px">${ava(user(), 84, "t")}${CUP}
+    <span class="chip-title">${ic("trophy2", 14)} ${fmtMonth(curMonth())}</span><h2 class="big">Oyning eng yaxshi o‘qituvchisi!</h2>
+    <span style="font-size:16px">Hurmatli <b>${esc(user().name)}</b>, ota-onalar bahosi va ochiq darslaringiz bo‘yicha maktabda <b>1-o‘rindasiz</b>. Mehnatingiz uchun rahmat!</span>
+    <span class="small muted">${fmtAvg(me.score)} ball · ${me.stars != null ? fmtAvg(me.stars) + " ★ (" + me.votes + " baho)" : ""} · ${me.open_lessons} ochiq dars</span>
+    <button type="button" class="btn" data-a="close-modal">Rahmat!</button></div>`;
+};
+function todayBody() {
+  {
     const d = today(), path = `/lessons?from=${d}&to=${d}`;
     const list = data(path);
     if (list === undefined) return pending(path);
@@ -43,8 +61,8 @@ VIEWS["teacher:today"] = {
       const btn = l.lesson_id && st !== "planned" ? `<button type="button" class="btn sec sm" data-a="go" data-r="lesson-${l.lesson_id}">${st === "ended" ? "Ko‘rish" : "Davom ettirish"}</button>` : t && t.state !== "future" && (t.state === "now" || t.state === "after" || (t.state === "before" && t.mins <= 15)) ? `<button type="button" class="btn sm" data-a="lesson-start" data-c="${l.class_id}" data-p="${l.period}">Boshlash</button>` : "";
       return `<div class="row"><div class="time"><b>${l.period}</b><br>${t ? hm(t.t.start) : ""}</div><div class="col grow"><b>${esc(l.class_name)} · ${esc(l.subject)}</b><span class="small muted">${esc(l.topic || "Mavzu kiritilmagan")}</span>${label ? `<span>${label}</span>` : ""}</div>${btn}</div>`;
     }).join("")}</div></section>`;
-  },
-};
+  }
+}
 ACTIONS["lesson-start"] = (el) => { S.f.ltopic = ""; openModal({ type: "lesson-start", id: Number(el.dataset.c), extra: el.dataset.p }); };
 MODALS["lesson-start"] = (m) => {
   const c = S.me.classes.find((x) => x.id === m.id);

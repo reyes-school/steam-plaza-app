@@ -278,3 +278,6 @@ button.chip-file { font: inherit; }
 .list .num, .linkbtn, .btn.ghost.sm { white-space: nowrap; }
 .list > .row { flex-wrap: nowrap; }
 @media (max-width: 899px) { .list > .row b.num { font-size: 14px; } }
+.heroes { background: radial-gradient(circle at 100% 0%, #FFF6DD 0%, var(--surface) 55%); border-color: var(--gold); }
+.hero-tile { flex: 1 1 260px; display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 16px; border: 1px solid var(--gold-soft); background: var(--surface); text-align: left; cursor: pointer; }
+.hero-tile:hover { border-color: var(--gold); }
