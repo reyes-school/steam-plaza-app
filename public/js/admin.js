@@ -105,7 +105,7 @@ MODALS["student-new"] = () => {
     <div class="row wrap" style="align-items:flex-start">${field("nclass", "Sinf", { options: S.me.classes.map((c) => [c.id, c.name]), required: true })}${field("nfee", "Oylik to‘lov (so‘m)", { mode: "numeric", def: "2000000" })}${field("njoined", "Qabul sanasi", { type: "date", def: today() })}</div>
     ${field("naddr", "Manzil")}${field("nprev", "Avvalgi maktab (ko‘chib kelgan bo‘lsa)")}
     <div class="col" style="gap:8px;border-top:1px solid var(--line);padding-top:12px"><div class="row between"><b>Ota-ona</b>${seg("parentMode", existing ? "existing" : "new", [["new", "Yangi"], ["existing", "Mavjud"]])}</div>
-      ${existing ? field("npid", "Ota-ona (ro‘yxatdan)", { options: (data("/users?role=parent") || []).map((p) => [p.id, `${p.name} · ${fmtPhone(p.phone)}`]) }) : `<div class="row wrap" style="align-items:flex-start">${field("npname", "F.I.Sh.", { required: true })}${field("npphone", "Telefon", { ph: "+998 90 123 45 67", mode: "tel", required: true })}</div>
+      ${existing ? field("npid", "Ota-ona (ro‘yxatdan)", { options: (data("/users?role=parent") || []).map((p) => [p.id, `${p.name} · ${fmtPhone(p.phone)}`]) }) : `<div class="row wrap" style="align-items:flex-start">${field("npname", "F.I.Sh.", { required: true })}${field("npphone", "Telefon", { phone: true, required: true })}</div>
       ${field("nppass", "Ota-ona uchun parol", { hint: "Kamida 6 belgi. Ota-onaga shu raqam va parolni bering.", def: S.ui.genPass || (S.ui.genPass = Math.random().toString(36).slice(2, 8)) })}`}</div>
     <span class="xs muted">Hujjatlar (metrika, pasport, attestat) va rasmni o‘quvchi sahifasida yuklaysiz.</span>
     <button type="submit" class="btn" ${busy("sn") ? "disabled" : ""}>O‘quvchini qo‘shish</button>
@@ -130,7 +130,7 @@ VIEWS["admin:teachers"] = {
   },
 };
 const teacherFields = (pre) => `
-  <div class="row wrap" style="align-items:flex-start">${field(pre + "name", "F.I.Sh.", { required: true })}${field(pre + "phone", "Telefon (login)", { mode: "tel", ph: "+998 90 123 45 67", required: true })}</div>
+  <div class="row wrap" style="align-items:flex-start">${field(pre + "name", "F.I.Sh.", { required: true })}${field(pre + "phone", "Telefon (login)", { phone: true, required: true })}</div>
   <div class="row wrap" style="align-items:flex-start">${field(pre + "pos", "Lavozim", { ph: "Matematika o‘qituvchisi" })}${field(pre + "subj", "Fanlari", { ph: "Matematika, Geometriya" })}${field(pre + "gender", "Jinsi", { options: [["m", "Erkak"], ["f", "Ayol"]], blank: false })}</div>
   <div class="row wrap" style="align-items:flex-start">${field(pre + "exp", "Ish staji (yil)", { mode: "numeric" })}${field(pre + "cat", "Toifa", { ph: "Oliy toifa" })}${field(pre + "salary", "Oylik maosh (so‘m)", { mode: "numeric" })}</div>
   ${field(pre + "edu", "Ma’lumoti", { ph: "TDPU, matematika fakulteti (2010)" })}
@@ -286,7 +286,7 @@ MODALS["user-new"] = () => {
   return `${modalHead("Yangi foydalanuvchi", "O‘qituvchilarni “O‘qituvchilar” bo‘limida qo‘shing")}
     <form class="stack" style="gap:12px" data-submit="user-new">
       ${field("unrole", "Rol", { options: roles, blank: false, def: roles[0][0] })}
-      <div class="row wrap" style="align-items:flex-start">${field("unname", "F.I.Sh.", { required: true })}${field("unphone", "Telefon (login)", { mode: "tel", ph: "+998 90 123 45 67", required: true })}</div>
+      <div class="row wrap" style="align-items:flex-start">${field("unname", "F.I.Sh.", { required: true })}${field("unphone", "Telefon (login)", { phone: true, required: true })}</div>
       ${field("unpos", "Lavozim / izoh", { ph: "Masalan, o‘quv ishlari bo‘yicha menejer" })}
       ${field("unpw", "Parol", { def: S.ui.genPass || (S.ui.genPass = Math.random().toString(36).slice(2, 8)), hint: "Kamida 6 belgi" })}
       <button type="submit" class="btn" ${busy("un") ? "disabled" : ""}>Qo‘shish</button></form>`;
@@ -301,7 +301,7 @@ MODALS["user-edit"] = (m) => {
   if (S.ui.ueFilled !== m.id) { fill({ uename: u.name, uephone: u.phone, uepos: u.profile?.position || u.profile?.workplace || "", uepw: "" }); S.ui.ueFilled = m.id; }
   return `${modalHead(u.name || "Foydalanuvchi", ROLE_L[u.role] || "")}
     <form class="stack" style="gap:12px" data-submit="user-edit" data-v="${m.id}">
-      <div class="row wrap" style="align-items:flex-start">${field("uename", "F.I.Sh.", { required: true })}${field("uephone", "Telefon (login)", { mode: "tel" })}</div>
+      <div class="row wrap" style="align-items:flex-start">${field("uename", "F.I.Sh.", { required: true })}${field("uephone", "Telefon (login)", { phone: true })}</div>
       ${field("uepw", "Yangi parol", { hint: "Ota-ona yoki xodim parolni unutsa, yangisini shu yerda bering" })}
       <div class="row wrap" style="gap:8px"><button type="submit" class="btn" ${busy("ue") ? "disabled" : ""}>Saqlash</button>${u.id !== user().id ? `<button type="button" class="btn sec" data-a="user-active" data-v="${u.id}" data-on="${u.active ? 0 : 1}">${u.active ? "Bloklash" : "Faollashtirish"}</button>` : ""}</div></form>`;
 };

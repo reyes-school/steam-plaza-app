@@ -3,7 +3,7 @@ import {
   S, VIEWS, ACTIONS, SUBMITS, MODALS, render, go, api, post, patch, del, put, run, busy, data, pending, invalidate, toast, openModal, closeModal, modalHead,
   esc, ic, badge, seg, pills, cardHead, empty, bar, field, fv, fill, starsHtml, rankMark, avgColor, ava, avaEdit, fileBox, fileLinks, fileUrl, isImg, pdfBtn,
   fmtDay, fmtDate, fmtTime, fmtWhen, fmtMonth, fmtNum, fmtSum, fmtAvg, fmtPhone, fmtSize, hm, sName, initials, today, curMonth, addDays, mondayOf, monthShift, monthEnd, wdOf,
-  WD, WDS, MONTHS_S, ROLE_L, ADMINS, STAFF, FINANCE, user, role, group, settings, periodTimes, setToken, loadMe, linkTo, tzNow,
+  WD, WDS, MONTHS_S, ROLE_L, ADMINS, STAFF, FINANCE, user, role, group, settings, periodTimes, setToken, loadMe, linkTo, tzNow, fmtLocal, FLAG,
 } from "./core.js";
 
 /* ================= login ================= */
@@ -11,21 +11,18 @@ VIEWS["*:login"] = {
   title: "Kirish",
   render() {
     const sch = settings().school || {};
-    return `<div class="login">
-      <div class="login-art">
-        <img src="/logo-full.png" alt="Steam Plaza" style="width:220px;height:auto">
-        <div class="col" style="gap:14px"><h2>Maktab hayoti —<br>bir platformada</h2><span class="muted" style="font-size:16px;max-width:440px">Dars jadvali, baholar, uyga vazifa, davomat, reyting, yangiliklar va to‘lovlar. Ota-onalar, o‘qituvchilar va maktab ma’muriyati uchun.</span></div>
-        <span class="small muted">${esc(sch.name || "Steam Plaza")} ${sch.phone ? "· " + esc(sch.phone) : ""}</span>
-      </div>
-      <div class="login-form"><form class="inner" data-submit="login">
-        <img src="/logo-full.png" alt="Steam Plaza" class="login-logo" style="width:170px;height:auto;align-self:center">
-        <div class="col" style="gap:4px"><h1>Tizimga kirish</h1><span class="muted">Telefon raqamingiz va parolingizni kiriting. Parolni maktab administratori beradi.</span></div>
-        ${field("lphone", "Telefon raqam", { ph: "+998 90 123 45 67", mode: "tel", ac: "username" })}
-        ${field("lpass", "Parol", { type: "password", ac: "current-password" })}
+    return `<div class="login ios">
+      <div class="login-top"><div class="app-icon"><img src="/logo-mark.png" alt=""></div><h1>${esc(sch.name || "Steam Plaza")}</h1><p>Dars jadvali, baholar, uyga vazifa, reyting va to‘lovlar — ota-onalar, o‘qituvchilar va maktab uchun.</p></div>
+      <form class="login-sheet" data-submit="login">
+        <h2>Kirish</h2>
+        <div class="group">
+          <div class="g-row"><label for="lphone">Telefon</label><span class="cc">${FLAG}+998</span><input id="lphone" data-f="lphone" data-phone="1" type="tel" inputmode="tel" autocomplete="username" placeholder="90 123 45 67" value="${esc(fmtLocal(fv("lphone")))}"></div>
+          <div class="g-row"><label for="lpass">Parol</label><input id="lpass" data-f="lpass" type="${S.ui.showPass ? "text" : "password"}" autocomplete="current-password" placeholder="Parolingiz" value="${esc(fv("lpass"))}"><button type="button" class="eye" data-a="set" data-k="showPass" data-v="${S.ui.showPass ? "" : "1"}" aria-label="${S.ui.showPass ? "Parolni yashirish" : "Parolni ko‘rsatish"}">${ic("eye", 20)}</button></div>
+        </div>
         ${S.ui.loginErr ? `<span class="err-text" role="alert">${esc(S.ui.loginErr)}</span>` : ""}
         <button type="submit" class="btn" ${busy("login") ? "disabled" : ""}>${busy("login") ? "Kirilmoqda…" : "Kirish"}</button>
-        <span class="xs muted" style="text-align:center">Parolni unutdingizmi? Maktab administratoriga murojaat qiling.</span>
-      </form></div>
+        <span class="xs muted" style="text-align:center">Parolni maktab administratori beradi. Unutgan bo‘lsangiz, administratorga murojaat qiling.</span>
+      </form>
     </div>`;
   },
 };

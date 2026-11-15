@@ -1,5 +1,5 @@
 // Entry point: event wiring, uploads, polling, boot.
-import { S, render, go, api, post, patch, ACTIONS, SUBMITS, setToken, loadMe, logout, toast, closeModal, openModal, retry, uploadFile, download, invalidate, run, parseHash, role, ADMINS, pickFiles, pickAndUpload } from "./core.js";
+import { S, render, go, api, post, patch, ACTIONS, SUBMITS, setToken, loadMe, logout, toast, closeModal, openModal, retry, uploadFile, download, invalidate, run, parseHash, role, ADMINS, pickFiles, pickAndUpload, fmtLocal } from "./core.js";
 import "./common.js";
 import "./admin.js";
 import "./teacher.js";
@@ -58,7 +58,14 @@ document.addEventListener("submit", (e) => {
   const fn = SUBMITS[f.dataset.submit];
   if (fn) Promise.resolve(fn(f)).catch((err) => console.error(err));
 });
-document.addEventListener("input", (e) => { const el = e.target; if (!el.dataset?.f) return; S.f[el.dataset.f] = el.type === "checkbox" ? (el.checked ? "1" : "") : el.value; if (el.dataset.live) render(); });
+document.addEventListener("input", (e) => {
+  const el = e.target; if (!el.dataset?.f) return;
+  if (el.dataset.phone) { const v = fmtLocal(el.value); if (v !== el.value) el.value = v; }
+  S.f[el.dataset.f] = el.type === "checkbox" ? (el.checked ? "1" : "") : el.value;
+  if (el.dataset.live) render();
+});
+// iOS-style large title: show the compact title in the bar once the page scrolls
+addEventListener("scroll", () => document.body.classList.toggle("scrolled", scrollY > 36), { passive: true });
 document.addEventListener("change", (e) => {
   const el = e.target; if (!el.dataset?.f) return;
   S.f[el.dataset.f] = el.type === "checkbox" ? (el.checked ? "1" : "") : el.value;

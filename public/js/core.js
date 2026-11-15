@@ -26,6 +26,8 @@ export const fmtNum = (n) => (n == null || Number.isNaN(Number(n)) ? "—" : Mat
 export const fmtSum = (n) => fmtNum(n) + " so‘m";
 export const fmtMln = (n) => (Number(n) / 1e6).toFixed(1).replace(".", ",") + " mln";
 export const fmtAvg = (n) => (n == null ? "—" : Number(n).toFixed(1).replace(".", ","));
+export const fmtLocal = (v) => { let d = String(v || "").replace(/\D/g, ""); if (d.length > 9 && d.startsWith("998")) d = d.slice(3); d = d.slice(0, 9); return [d.slice(0, 2), d.slice(2, 5), d.slice(5, 7), d.slice(7, 9)].filter(Boolean).join(" "); };
+export const FLAG = `<span class="flag" aria-hidden="true"><i></i><i></i><i></i></span>`;
 export const fmtPhone = (p) => String(p || "").replace(/^\+998(\d{2})(\d{3})(\d{2})(\d{2})$/, "+998 $1 $2 $3 $4");
 export const fmtSize = (n) => (n >= 1048576 ? (n / 1048576).toFixed(1).replace(".", ",") + " MB" : Math.max(1, Math.round((n || 0) / 1024)) + " KB");
 export const hm = (m) => `${pad(Math.floor(m / 60))}:${pad(m % 60)}`;
@@ -191,6 +193,7 @@ export const bar = (pct, color = "var(--accent)") => `<div class="bar"><i style=
 export const linkTo = (label, route, cls = "link") => `<button type="button" class="${cls}" data-a="go" data-r="${esc(route)}">${label}</button>`;
 export function field(id, label, o = {}) {
   const attrs = `id="${id}" data-f="${id}" ${o.live ? 'data-live="1"' : ""} ${o.required ? "required" : ""} ${o.max ? `maxlength="${o.max}"` : ""}`;
+  if (o.phone) return `<div class="field" ${o.style ? `style="${o.style}"` : ""}><label for="${id}">${esc(label)}${o.required ? ' <span style="color:var(--bad)">*</span>' : ""}</label><div class="phone-wrap"><span class="cc">${FLAG}+998</span><input class="input" ${attrs} data-phone="1" type="tel" inputmode="tel" placeholder="90 123 45 67" value="${esc(fmtLocal(fv(id, o.def)))}" autocomplete="${o.ac || "off"}"></div>${o.hint ? `<span class="xs muted">${esc(o.hint)}</span>` : ""}</div>`;
   const input = o.area
     ? `<textarea class="input" ${attrs} rows="${o.rows || 3}" placeholder="${esc(o.ph || "")}">${esc(fv(id, o.def))}</textarea>`
     : o.options
@@ -355,10 +358,11 @@ function shell(view, content) {
       <div class="me"><button type="button" class="ava-btn" data-a="go" data-r="profile" aria-label="Profil">${ava(u, 36, u.role === "teacher" ? "t" : "s")}</button><div class="col grow" style="gap:0"><b class="small" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(u.name)}</b><span class="xs muted">${ROLE_L[u.role]}</span></div><button type="button" class="iconbtn" style="width:38px;height:38px;border:0;background:transparent" data-a="logout" aria-label="Chiqish">${ic("logout", 19)}</button></div>
     </aside>
     <div class="main">
-      <header class="top">
-        <div class="row"><img src="/logo-mark.png" alt="${esc(sch.name || "Steam Plaza")}" width="54" height="28" style="object-fit:contain;flex-shrink:0"><div class="col grow" style="gap:0"><span class="xs muted">${esc(sch.name || "Steam Plaza")} · ${ROLE_L[u.role]}</span><b style="font-size:16px;font-family:var(--display);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(u.name)}</b></div>
-          <button type="button" class="iconbtn" data-a="bell" aria-label="Bildirishnomalar${unread ? `: ${unread} ta yangi` : ""}">${ic("bell", 19)}${unread ? '<span class="dot"></span>' : ""}</button>
-          <button type="button" class="iconbtn" data-a="go" data-r="profile" aria-label="Profil">${ic("user", 18)}</button></div>
+      <header class="top"><div class="top-row">
+        ${view.back ? `<button type="button" class="iconbtn" data-a="back" aria-label="Orqaga">${ic("back", 18)}</button>` : `<img src="/logo-mark.png" alt="${esc(sch.name || "Steam Plaza")}" width="52" height="28" style="object-fit:contain;flex-shrink:0">`}
+        <span class="nav-title">${esc(typeof view.title === "function" ? view.title() : view.title)}</span>
+        <button type="button" class="iconbtn" data-a="bell" aria-label="Bildirishnomalar${unread ? `: ${unread} ta yangi` : ""}">${ic("bell", 18)}${unread ? '<span class="dot"></span>' : ""}</button>
+        <button type="button" class="iconbtn" data-a="go" data-r="profile" aria-label="Profil">${ic("user", 18)}</button></div>
       </header>
       <main class="content" id="main">
         ${view.noHead ? "" : `<div class="page-head"><div class="row" style="gap:8px">${view.back ? `<button type="button" class="iconbtn" data-a="back" aria-label="Orqaga">${ic("back", 18)}</button>` : ""}<h1>${esc(typeof view.title === "function" ? view.title() : view.title)}</h1></div>${view.actions ? view.actions() : ""}</div>`}
