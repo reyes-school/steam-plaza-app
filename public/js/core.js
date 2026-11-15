@@ -93,6 +93,10 @@ export const ICON = {
   eye: '<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
   play: '<path d="M7 5v14l12-7z"/>',
   flag: '<path d="M5 21V4h11l-1.5 4L16 12H5"/>',
+  sun: '<circle cx="12" cy="12" r="4.5"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/>',
+  clipboard: '<rect x="6" y="4" width="12" height="17" rx="2"/><path d="M9 4V3h6v1M9 10h6M9 14h6M9 18h3"/>',
+  calcheck: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4M9 15l2 2 4-4"/>',
+  filter: '<path d="M4 5h16l-6 8v5l-4 2v-7z"/>',
   medal: '<circle cx="12" cy="15" r="5"/><path d="M8.5 11 6 3h4l2 5 2-5h4l-2.5 8"/>',
 };
 export const ic = (n, s = 22) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[n] || ""}</svg>`;
@@ -312,6 +316,98 @@ export async function download(path, name) {
 }
 export const pdfBtn = (path, name, label = "PDF yuklab olish") => `<button type="button" class="btn sec sm" data-a="pdf" data-v="${esc(path)}" data-n="${esc(name)}" ${busy("dl:" + path) ? "disabled" : ""}>${busy("dl:" + path) ? '<span class="spin" style="width:14px;height:14px"></span>' : ic("download", 16)} ${esc(label)}</button>`;
 
+/* ---------- design components ---------- */
+export function greeting(name) {
+  const h = Math.floor(tzNow().min / 60);
+  const hi = h >= 5 && h < 11 ? "Xayrli tong" : h >= 11 && h < 17 ? "Xayrli kun" : h >= 17 && h < 22 ? "Xayrli kech" : "Xayrli tun";
+  const first = String(name || "").trim().split(/\s+/)[0] || "";
+  const d = today();
+  return `<div class="greet"><h1>${hi}${first ? ", " + esc(first) : ""}!</h1><div class="when"><span class="sun">${ic("sun", 20)}</span>Bugun ${fmtDay(d)}, ${WD[wdOf(d)].toLowerCase()}</div></div>`;
+}
+export function sparkline(values, color = "var(--accent)") {
+  const v = (values || []).filter((x) => x != null && !Number.isNaN(Number(x))).map(Number);
+  if (v.length < 2) return "";
+  const W = 96, H = 28, min = Math.min(...v), max = Math.max(...v), span = max - min || 1;
+  const pts = v.map((x, i) => [((i / (v.length - 1)) * (W - 4) + 2).toFixed(1), (H - 3 - ((x - min) / span) * (H - 8)).toFixed(1)]);
+  return `<svg class="spark" viewBox="0 0 ${W} ${H}" aria-hidden="true"><polyline points="${pts.map((p) => p.join(",")).join(" ")}" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+}
+const TONE_COL = { green: "#1A9F5B", yellow: "#E8A21A", mint: "#0F9F80", lav: "#6C5CE7", sky: "#2F80ED", rose: "#E5484D" };
+/** Coloured statistic tile. delta: number (positive = good unless bad:true). */
+export function tile({ icon, label, value, tone = "green", delta = null, deltaText = "", goodUp = true, spark = null, route = null, cls = "" }) {
+  const dir = delta == null || delta === 0 ? "flat" : (delta > 0) === goodUp ? "up" : "down";
+  const d = delta == null ? "" : `<span class="t-d ${dir}">${delta > 0 ? "↑" : delta < 0 ? "↓" : "="} ${esc(deltaText)}</span>`;
+  const tag = route ? "button" : "div";
+  return `<${tag} ${route ? `type="button" data-a="go" data-r="${esc(route)}"` : ""} class="tile ${tone} ${cls}"><div class="t-top"><span class="t-ic">${ic(icon, 21)}</span><span class="t-l">${esc(label)}</span></div><span class="t-v">${value}</span><div class="t-foot">${d || "<span></span>"}${spark ? sparkline(spark, TONE_COL[tone]) : ""}</div></${tag}>`;
+}
+export function ring(pct, label = "") {
+  const L = 226.2, p = Math.max(0, Math.min(100, Math.round(pct || 0)));
+  return `<div class="ring" style="--len:${L}" role="img" aria-label="${p}%${label ? " " + esc(label) : ""}"><svg viewBox="0 0 84 84"><circle class="bg" cx="42" cy="42" r="36"/><circle class="fg" cx="42" cy="42" r="36" stroke-dasharray="${L}" stroke-dashoffset="${(L * (1 - p / 100)).toFixed(1)}"/></svg><b>${p}%</b></div>`;
+}
+export const PLANE = `<svg class="plane" viewBox="0 0 430 190" aria-hidden="true"><defs><linearGradient id="pf" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#D6E2EB"/></linearGradient></defs>
+  <ellipse cx="90" cy="150" rx="70" ry="16" fill="#fff" opacity=".9"/><ellipse cx="130" cy="140" rx="46" ry="18" fill="#fff" opacity=".9"/><ellipse cx="360" cy="40" rx="44" ry="11" fill="#fff" opacity=".85"/>
+  <path d="M212 93 L262 38 L286 38 L254 96 Z" fill="#C3D1DC"/>
+  <path d="M44 106 C70 88 300 79 366 87 C398 91 412 101 404 110 C396 118 366 121 334 121 L76 121 C54 121 36 114 44 106 Z" fill="url(#pf)"/>
+  <path d="M64 106 L34 50 L58 50 L106 102 Z" fill="#1A9F5B"/><path d="M58 50 L70 50 L104 98 L96 100 Z" fill="#F2B12E"/>
+  <path d="M66 112 L392 105 L396 110 L70 118 Z" fill="#1A9F5B"/><path d="M70 119 L396 111 L397 113 L72 121 Z" fill="#F2B12E"/>
+  <path d="M196 108 L258 166 L286 166 L248 106 Z" fill="#E6EDF3" stroke="#C3D1DC"/><ellipse cx="244" cy="138" rx="20" ry="8" fill="#AFC0CD"/><ellipse cx="228" cy="138" rx="5" ry="7" fill="#7F93A3"/>
+  ${Array.from({ length: 15 }, (_, i) => `<rect x="${126 + i * 15}" y="94" width="8" height="8" rx="3" fill="#2E4A5E" opacity=".75"/>`).join("")}
+  <path d="M376 91 Q392 94 400 102 L382 102 Z" fill="#2E4A5E"/></svg>`;
+export function banner({ title = "Bilim bilan parvoz qiling!", btn = "Batafsil", route = "news" } = {}) {
+  const sch = settings().school || {};
+  return `<section class="banner"><span class="b-brand">${ic("school", 16)} ${esc(sch.name || "Steam Plaza")}</span><h2>${esc(title)}</h2><button type="button" class="btn sm" data-a="go" data-r="${esc(route)}">${esc(btn)} →</button>${PLANE}</section>`;
+}
+const SUBJ_TONES = ["green", "yellow", "mint", "lav", "sky", "rose"];
+export const subjTone = (name) => { let h = 0; for (const c of String(name || "")) h = (h * 31 + c.charCodeAt(0)) >>> 0; return SUBJ_TONES[h % SUBJ_TONES.length]; };
+export const TONE = TONE_COL;
+
+/* ---------- motion: counters, bars, rings, charts animate once when visible ---------- */
+const played = new Set();
+let motionRoute = null, io = null;
+const reduceMotion = () => window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+function countUp(el) {
+  const node = [...el.childNodes].find((n) => n.nodeType === 3 && /\d/.test(n.nodeValue));
+  if (!node) return;
+  const m = /^(\D*?)(-?\d[\d\s]*)(,\d+)?(.*)$/s.exec(node.nodeValue);
+  if (!m) return;
+  const intPart = m[2].replace(/\s/g, ""), dec = m[3] ? m[3].length - 1 : 0, grouped = /\s/.test(m[2].trim());
+  const target = Number(intPart + (m[3] ? "." + m[3].slice(1) : ""));
+  if (!Number.isFinite(target) || target === 0) return;
+  const fmt = (v) => { let t = v.toFixed(dec).replace(".", ","); if (grouped) { const [i, f] = t.split(","); t = i.replace(/\B(?=(\d{3})+(?!\d))/g, " ") + (f ? "," + f : ""); } return m[1] + t + m[4]; };
+  const t0 = performance.now(), dur = 800;
+  const step = (t) => { const k = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - k, 3); node.nodeValue = fmt(target * e); if (k < 1 && node.isConnected) requestAnimationFrame(step); else node.nodeValue = fmt(target); };
+  node.nodeValue = fmt(0); requestAnimationFrame(step);
+}
+function play(el) {
+  if (el.matches(".stat .v, .tile .t-v, .ranktile .big, .pod-avg")) countUp(el);
+  else el.classList.add("play");
+}
+function afterRender(routeKey) {
+  if (routeKey !== motionRoute) { played.clear(); motionRoute = routeKey; }
+  const main = document.getElementById("main"); if (!main) return;
+  if (!io && "IntersectionObserver" in window) io = new IntersectionObserver((entries) => { for (const en of entries) if (en.isIntersecting) { io.unobserve(en.target); play(en.target); } }, { threshold: 0.2 });
+  const seen = {};
+  main.querySelectorAll(".stat .v, .tile .t-v, .ranktile .big, .pod-avg, .bar > i, .ring, .chartbox, svg.spark, .check-ic.ok, .st-pill.ok").forEach((el) => {
+    const type = el.matches(".bar > i") ? "bar" : el.classList[0] || el.tagName;
+    const n = (seen[type] = (seen[type] || 0) + 1);
+    const key = `${type}|${n}|${(el.textContent || "").slice(0, 24)}|${el.getAttribute("style") || ""}`;
+    if (played.has(key)) return;
+    played.add(key);
+    if (reduceMotion()) return;
+    if (io) io.observe(el); else play(el);
+  });
+}
+// ripple feedback for touch on Android
+document.addEventListener("pointerdown", (e) => {
+  if (e.pointerType !== "touch" || !/Android/i.test(navigator.userAgent) || reduceMotion()) return;
+  const el = e.target.closest(".btn, .tab, .nav-item, .sheet-item, .pill, .week-chip, .seg button, .tile, .pcard, .cta-card");
+  if (!el) return;
+  const r = el.getBoundingClientRect(), size = Math.max(r.width, r.height);
+  const sp = document.createElement("span"); sp.className = "ripple";
+  sp.style.cssText = `width:${size}px;height:${size}px;left:${e.clientX - r.left - size / 2}px;top:${e.clientY - r.top - size / 2}px`;
+  if (getComputedStyle(el).position === "static") el.style.position = "relative";
+  el.style.overflow = "hidden"; el.appendChild(sp); setTimeout(() => sp.remove(), 600);
+}, { passive: true });
+
 /* ---------- celebrations ---------- */
 export function confetti() {
   if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
@@ -359,12 +455,15 @@ function shell(view, content) {
     </aside>
     <div class="main">
       <header class="top"><div class="top-row">
-        ${view.back ? `<button type="button" class="iconbtn" data-a="back" aria-label="Orqaga">${ic("back", 18)}</button>` : `<img src="/logo-mark.png" alt="${esc(sch.name || "Steam Plaza")}" width="52" height="28" style="object-fit:contain;flex-shrink:0">`}
-        <span class="nav-title">${esc(typeof view.title === "function" ? view.title() : view.title)}</span>
+        ${view.back ? `<button type="button" class="iconbtn" data-a="back" aria-label="Orqaga">${ic("back", 18)}</button>` : ""}
+        <div class="top-brand"><img src="/logo-mark.png" alt="" width="46" height="26" style="object-fit:contain;flex-shrink:0"><div style="min-width:0"><b>${esc(sch.name || "Steam Plaza")}</b><span class="xs muted">${ROLE_L[u.role]}</span></div></div>
         <button type="button" class="iconbtn" data-a="bell" aria-label="Bildirishnomalar${unread ? `: ${unread} ta yangi` : ""}">${ic("bell", 18)}${unread ? '<span class="dot"></span>' : ""}</button>
-        <button type="button" class="iconbtn" data-a="go" data-r="profile" aria-label="Profil">${ic("user", 18)}</button></div>
+        <button type="button" class="ava-btn" data-a="go" data-r="profile" aria-label="Profil">${ava(u, 36, u.role === "teacher" ? "t" : "s")}</button></div>
       </header>
-      <main class="content" id="main">
+      <div class="deskbar">${ADMINS.includes(u.role) ? `<form class="search" data-submit="gsearch">${ic("search", 17)}<input id="gq" data-f="gq" placeholder="O‘quvchi yoki ota-ona qidirish…" value="${esc(fv("gq"))}" aria-label="Qidirish"></form>` : ""}<span class="sp"></span>
+        <button type="button" class="iconbtn" data-a="bell" aria-label="Bildirishnomalar">${ic("bell", 18)}${unread ? '<span class="dot"></span>' : ""}</button>
+        <button type="button" class="ava-btn" data-a="go" data-r="profile" aria-label="Profil">${ava(u, 38, u.role === "teacher" ? "t" : "s")}</button></div>
+      <main class="content ${S._pageIn ? "page-in" : ""}" id="main">
         ${view.noHead ? "" : `<div class="page-head"><div class="row" style="gap:8px">${view.back ? `<button type="button" class="iconbtn" data-a="back" aria-label="Orqaga">${ic("back", 18)}</button>` : ""}<h1>${esc(typeof view.title === "function" ? view.title() : view.title)}</h1></div>${view.actions ? view.actions() : ""}</div>`}
         ${content}
       </main>
@@ -388,11 +487,17 @@ export function render() {
     let content = "", modal = "";
     try { content = view.render(id); } catch (e) { console.error(e); content = `<section class="card"><b>Bu sahifani ko‘rsatib bo‘lmadi</b><span class="muted">Sahifani yangilab ko‘ring. Muammo takrorlansa, administratorga xabar bering.</span></section>`; }
     if (S.modal) { try { const m = MODALS[S.modal.type]; modal = m ? `<div class="overlay" data-a="close-modal"><div class="modal ${S.modal.wide ? "wide" : ""}" role="dialog" aria-modal="true" data-stop="1">${m(S.modal)}</div></div>` : ""; } catch (e) { console.error(e); S.modal = null; } }
+    const routeKey = location.hash || "#";
+    const isPending = /class="spin"/.test(content) && content.length < 600;
+    S._pageIn = routeKey !== S._lastRoute || (S._lastPending && !isPending);
+    S._lastRoute = routeKey; S._lastPending = isPending;
     html = shell(view, content) + modal;
+    S._routeKey = routeKey;
     document.title = `${typeof view.title === "function" ? view.title() : view.title} · ${settings().school?.name || "Steam Plaza"}`;
   }
   if (S.toast) html += `<div class="toast" role="status">${esc(S.toast)}</div>`;
   root.innerHTML = html;
   if (scrollModal) { const m = document.querySelector(".modal"); if (m) m.scrollTop = scrollModal; }
+  if (S.me && S.token) { try { afterRender(S._routeKey); } catch (e) { console.error(e); } S._pageIn = false; }
   if (focusId) { const el = document.getElementById(focusId); if (el) { el.focus({ preventScroll: true }); if (sel && el.setSelectionRange) { try { el.setSelectionRange(sel[0], sel[1]); } catch {} } } }
 }

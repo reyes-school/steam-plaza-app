@@ -2,7 +2,7 @@
 import {
   S, VIEWS, ACTIONS, MODALS, NAV, render, go, data, pending, openModal, closeModal, modalHead,
   esc, ic, badge, seg, cardHead, empty, bar, starsHtml, rankMark, avgColor, ava, linkTo,
-  fmtDay, fmtWhen, fmtMonth, fmtAvg, fmtPhone, hm, sName, today, addDays, wdOf, WD, settings, periodTimes, tzNow, confetti, celebrateOnce, CUP,
+  fmtDay, fmtWhen, fmtMonth, fmtAvg, fmtPhone, hm, sName, today, addDays, wdOf, WD, settings, periodTimes, tzNow, confetti, celebrateOnce, CUP, greeting, tile, banner, user, curMonth,
 } from "./core.js";
 import { currentKid, kidSwitcher, statsPanel, homeworkPanel, postCard } from "./common.js";
 
@@ -44,33 +44,65 @@ MODALS.celebrate = (m) => {
     <span class="chip-title">${ic("trophy2", 14)} 1-o‘rin</span><h2 class="big">${t}</h2><span style="font-size:16px"><b>${esc(kid.first_name || "")}</b> ${sub}! Tabriklaymiz, siz bilan faxrlanamiz.</span>
     <button type="button" class="btn" data-a="close-modal">Rahmat!</button></div>`;
 };
+function todayTimeline(kid) {
+  const d = today(), path = `/lessons?class_id=${kid.class_id}&from=${d}&to=${d}`;
+  const list = data(path);
+  if (list === undefined) return "";
+  const times = periodTimes(settings().bell), now = tzNow().min;
+  if (!list.length) return `<section class="card">${cardHead("Bugun")}${empty(wdOf(d) === 0 ? "Yakshanba — dam olish kuni" : "Bugun darslar yo‘q")}</section>`;
+  return `<section class="card">${cardHead("Bugun", linkTo("Barchasi →", "schedule"))}<div class="timeline">${list.map((x) => {
+    const t = times.find((y) => y.period === x.period), isNow = t && now >= t.start && now < t.end, done = x.status === "ended" || (t && now >= t.end);
+    return `<div class="tl-row ${x.status === "ended" ? "done" : ""} ${isNow ? "now" : ""}"><span class="tl-dot"></span><span class="tl-time">${t ? hm(t.start) : ""}</span><div class="col grow"><b>${esc(x.subject)}</b><span class="xs muted">${esc(x.teacher_name)}${x.topic ? " · " + esc(x.topic) : ""}${isNow ? ` · ${t.end - now} daq qoldi` : ""}</span></div>${x.status === "ended" ? `<span class="check-ic ok">${ic("check", 15)}</span>` : isNow ? `<span class="check-ic wait" style="border-color:var(--gold);color:var(--gold)">${ic("play", 12)}</span>` : `<span class="check-ic wait">${ic(done ? "close" : "play", 12)}</span>`}</div>`;
+  }).join("")}</div></section>`;
+}
 VIEWS["parent:home"] = {
-  title: () => `${WD[wdOf(today())]}, ${fmtDay(today())}`,
+  title: "Bosh sahifa", noHead: true,
   render() {
     const kid = currentKid();
-    if (!kid) return `<section class="card">${empty("Hisobingizga hali farzand biriktirilmagan. Maktab administratoriga murojaat qiling.")}</section>`;
+    if (!kid) return `${greeting(user().name)}<section class="card">${empty("Hisobingizga hali farzand biriktirilmagan. Maktab administratoriga murojaat qiling.")}</section>`;
     const cls = S.me.classes.find((c) => c.id === kid.class_id);
     const menu = data(`/menu?from=${today()}&to=${today()}`);
-    const hwPath = `/students/${kid.id}/homework?from=${addDays(today(), -4)}&to=${today()}`, hw = data(hwPath);
-    const lastDay = hw?.find((l) => l.homework)?.date;
+    const hwPath = `/students/${kid.id}/homework?from=${addDays(today(), -6)}&to=${today()}`, hw = data(hwPath);
+    const lastHw = hw?.find((l) => l.homework);
     const s = data("/students/" + kid.id);
+    const st = data(`/students/${kid.id}/stats?month=${curMonth()}`);
+    const R = data("/my/ranks")?.[kid.id];
     const week = data(`/ratings/students?period=week&class_id=${kid.class_id}`);
     const posts = data("/posts?limit=3");
-    return `${kidSwitcher()}
-      <section class="card profile-head"><button type="button" class="row" style="border:0;background:transparent;text-align:left;padding:0" data-a="go" data-r="student-${kid.id}">${ava(kid, 56)}<div class="col grow"><h2 style="font-size:20px">${esc(sName(kid))}</h2><span class="muted small">${esc(cls?.name || "")} sinf</span></div>${ic("chevron", 18)}</button></section>
-      ${rankCard(kid)}
-      ${nowLesson(kid)}
-      <div class="grid" style="--min:300px">
-        ${cls?.leader_name ? `<section class="card">${cardHead("Sinf rahbari")}<div class="row">${ava({ id: cls.leader_id }, 44, "t")}<div class="col grow"><b>${esc(cls.leader_name)}</b><a class="small" href="tel:${esc(cls.leader_phone || "")}" style="color:var(--accent-ink)">${ic("phone", 14)} ${fmtPhone(cls.leader_phone)}</a></div><button type="button" class="btn sec sm" data-a="go" data-r="teacher-${cls.leader_id}">Profil</button></div></section>` : ""}
-        <section class="card">${cardHead("Bugungi taomnoma")}${menu === undefined ? "" : menu.length ? `<div class="row wrap" style="gap:8px">${menu.map((m) => `<div class="meal" style="background:var(--surface-2)"><span class="xs muted">${MEAL_L[m.meal]}</span><b class="small">${esc(m.dish)}</b>${m.items ? `<span class="xs muted">${esc(m.items)}</span>` : ""}</div>`).join("")}</div>` : empty("Taomnoma kiritilmagan")}</section>
+    const att = st?.attendance || {}, totA = (att.present || 0) + (att.absent || 0) + (att.late || 0), hwT = (st?.homework?.done || 0) + (st?.homework?.missed || 0);
+    const trend = st?.trend?.map((t) => t.avg) || [];
+    const tiles = st ? `<div class="tiles">
+        ${tile({ icon: "calcheck", label: "Davomat", value: totA ? Math.round(((att.present + att.late) / totA) * 100) + "%" : "—", tone: "green", spark: trend.length ? trend.map((x) => (x ? 80 + x * 3 : null)) : null })}
+        ${tile({ icon: "star", label: "O‘rtacha baho", value: fmtAvg(st.avg), tone: "yellow", delta: st.avg != null && st.prevAvg != null ? Math.round((st.avg - st.prevAvg) * 10) / 10 : null, deltaText: st.avg != null && st.prevAvg != null ? fmtAvg(Math.abs(st.avg - st.prevAvg)) : "", spark: trend })}
+        ${tile({ icon: "clipboard", label: "Uy vazifalari", value: hwT ? Math.round((st.homework.done / hwT) * 100) + "%" : "—", tone: "mint", route: "homework", cls: "hide-m" })}
+        ${tile({ icon: "trophy", label: "Sinf reytingi", value: st.classRank ? `${st.classRank}/${st.classSize}` : "—", tone: "lav", route: "ratings" })}
+      </div>` : "";
+    const leader = cls?.leader_name ? `<section class="card" style="gap:8px"><span class="xs muted b">Sinf rahbari</span><div class="row">${ava({ id: cls.leader_id }, 46, "t")}<div class="col grow"><b>${esc(cls.leader_name)}</b><span class="small muted">${fmtPhone(cls.leader_phone)}</span></div><a class="call-btn" href="tel:${esc(cls.leader_phone || "")}" aria-label="Qo‘ng‘iroq qilish">${ic("phone", 18)}</a></div></section>` : "";
+    const rankCta = R?.week?.rank ? `<button type="button" class="rank-cta" style="border:0;text-align:left" data-a="go" data-r="ratings"><span class="small" style="opacity:.9">Sinf reytingida (hafta)</span><b style="font-size:24px">${R.week.rank}-o‘rin</b><span class="xs" style="opacity:.85">Batafsil →</span><svg class="star" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="${ICON_STAR}"/></svg></button>` : "";
+    return `${greeting(user().name)}
+      ${kidSwitcher()}
+      <button type="button" class="pcard" data-a="go" data-r="student-${kid.id}"><span class="ava-wrap">${ava(kid, 58)}</span><div class="col grow"><b style="font-size:18px">${esc(sName(kid))}</b><span class="small muted">${esc(cls?.name || "")} sinf</span></div>${ic("chevron", 18)}</button>
+      ${tiles}
+      <div class="grid" style="--min:330px">
+        <div class="stack" style="gap:14px">
+          ${todayTimeline(kid)}
+          ${lastHw ? `<button type="button" class="cta-card" data-a="go" data-r="homework"><span class="cta-ic">${ic("book", 22)}</span><div class="col grow"><span class="xs muted b">Uy vazifasi</span><b>${esc(lastHw.subject)}</b><span class="small">${esc(lastHw.homework)}</span><span class="xs muted">${fmtDay(lastHw.date)}, ${WD[wdOf(lastHw.date)].toLowerCase()}</span></div>${ic("chevron", 18)}</button>` : ""}
+          ${leader}
+        </div>
+        <div class="stack" style="gap:14px">
+          ${rankCard(kid)}
+          ${rankCta}
+          ${banner({ title: "Bilim bilan parvoz qiling!", route: "news" })}
+          <section class="card">${cardHead("Bugungi taomnoma")}${menu === undefined ? "" : menu.length ? `<div class="row wrap" style="gap:8px">${menu.map((m) => `<div class="meal" style="background:var(--surface-2)"><span class="xs muted">${MEAL_L[m.meal]}</span><b class="small">${esc(m.dish)}</b>${m.items ? `<span class="xs muted">${esc(m.items)}</span>` : ""}</div>`).join("")}</div>` : empty("Taomnoma kiritilmagan")}</section>
+        </div>
       </div>
-      <section class="card">${cardHead(lastDay ? `Uyga vazifa · ${fmtDay(lastDay)}` : "Uyga vazifa", linkTo("Barchasi →", "homework"))}${hw === undefined ? "" : lastDay ? `<div class="list">${hw.filter((l) => l.date === lastDay && l.homework).map((l) => `<div class="col"><b class="small">${esc(l.subject)}</b><span>${esc(l.homework)}</span></div>`).join("")}</div>` : empty("So‘nggi kunlarda uyga vazifa berilmagan")}</section>
       ${s?.feedback?.length ? `<section class="card">${cardHead("O‘qituvchilar fikri")}<div class="list">${s.feedback.slice(0, 3).map((f) => `<div class="col"><div class="row between"><b class="small">${esc(f.teacher_name)}</b><span class="xs muted">${fmtWhen(f.created_at)}</span></div><span>${esc(f.text)}</span></div>`).join("")}</div></section>` : ""}
-      ${week?.rows?.filter((x) => x.rank && x.rank <= 3).length ? `<section class="card">${cardHead("Hafta o‘quvchilari", linkTo("Reyting →", "ratings"))}<div class="row wrap" style="gap:10px">${week.rows.filter((x) => x.rank && x.rank <= 3).slice(0, 3).map((x) => `<div class="ranktile ${x.rank === 1 ? "top" : ""}" style="align-items:center;text-align:center">${rankMark(x.rank)}${ava(x, 52)}<b class="small">${esc(x.first_name)}</b><span class="xs muted">${fmtAvg(x.avg)}</span></div>`).join("")}</div></section>` : ""}
-      ${posts?.length ? `<section class="card">${cardHead("Yangiliklar", linkTo("Barchasi →", "news"))}<div class="grid" style="--min:260px">${posts.map(postCard).join("")}</div></section>` : ""}`;
+      ${week?.rows?.filter((x) => x.rank && x.rank <= 3).length ? `<section class="card">${cardHead("Hafta o‘quvchilari", linkTo("Reyting →", "ratings"))}<div class="podium">${week.rows.filter((x) => x.rank && x.rank <= 3).slice(0, 3).map((x) => `<button type="button" class="pod p${x.rank}" data-a="stu-open" data-v="${x.id}">${rankMark(x.rank)}${ava(x, 56)}<b>${esc(x.first_name)}</b><span class="pod-avg">${fmtAvg(x.avg)}</span></button>`).join("")}</div></section>` : ""}
+      ${posts?.length ? `<section class="card">${cardHead("So‘nggi xabarlar", linkTo("Barchasi →", "news"))}<div class="grid" style="--min:260px">${posts.map(postCard).join("")}</div></section>` : ""}`;
   },
 };
-VIEWS["parent:homework"] = { title: "Uy vazifalari", render() { const k = currentKid(); return kidSwitcher() + (k ? `<section class="card">${homeworkPanel(k.id)}</section>` : empty("Farzand biriktirilmagan")); } };
+const ICON_STAR = "M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z";
+VIEWS["parent:homework"] = { title: "Uy vazifalari", render() { const k = currentKid(); return kidSwitcher() + (k ? homeworkPanel(k.id) : empty("Farzand biriktirilmagan")); } };
 VIEWS["parent:stats"] = { title: "O‘zlashtirish statistikasi", render() { const k = currentKid(); return kidSwitcher() + (k ? `<section class="card">${statsPanel(k.id)}</section>` : empty("Farzand biriktirilmagan")); } };
 VIEWS["parent:child"] = { title: "Farzandim", render() { const k = currentKid(); if (k) { location.replace("#student-" + k.id); return ""; } return empty("Farzand biriktirilmagan"); } };
 VIEWS["parent:teachers"] = {

@@ -3,7 +3,7 @@ import {
   S, VIEWS, ACTIONS, SUBMITS, MODALS, NAV, render, go, api, post, patch, del, put, run, busy, data, pending, invalidate, toast, openModal, closeModal, modalHead,
   esc, ic, badge, seg, pills, cardHead, empty, bar, field, fv, fill, starsHtml, rankMark, avgColor, ava, avaEdit, fileBox, fileLinks, pdfBtn, uploadFile,
   fmtDay, fmtDate, fmtWhen, fmtMonth, fmtNum, fmtSum, fmtMln, fmtAvg, fmtPhone, hm, sName, today, curMonth, addDays, monthShift, wdOf, WD, WDS, MONTHS_S,
-  ROLE_L, ADMINS, STAFF, FINANCE, user, role, settings, periodTimes, tzNow, loadMe, linkTo, pickAndUpload, celebrateOnce, confetti, CUP, mondayOf,
+  ROLE_L, ADMINS, STAFF, FINANCE, user, role, settings, periodTimes, tzNow, loadMe, linkTo, pickAndUpload, celebrateOnce, confetti, CUP, mondayOf, greeting, tile, banner,
 } from "./core.js";
 import { postCard } from "./common.js";
 
@@ -31,7 +31,7 @@ function liveBlock() {
   </section>`;
 }
 VIEWS["admin:home"] = {
-  title: "Bosh sahifa",
+  title: "Bosh sahifa", noHead: true,
   render() {
     const d = data("/dashboard");
     if (d === undefined) return pending("/dashboard");
@@ -42,14 +42,23 @@ VIEWS["admin:home"] = {
     const heroes = ts || tt ? `<section class="card heroes">${cardHead("Maktab qahramonlari", `<button type="button" class="btn sm" data-a="a-cele">${ic("trophy", 16)} Tabriklash</button>`)}<div class="row wrap" style="gap:12px">
       ${ts ? `<button type="button" class="hero-tile" data-a="go" data-r="student-${ts.id}">${ava(ts, 56)}<div class="col"><span class="xs muted">Hafta o‘quvchisi</span><b>${esc(sName(ts))}</b><span class="small">${esc(ts.class_name || "")} · o‘rtacha ${fmtAvg(ts.avg)}</span></div></button>` : ""}
       ${tt ? `<button type="button" class="hero-tile" data-a="go" data-r="teacher-${tt.id}">${ava(tt, 56, "t")}<div class="col"><span class="xs muted">Oyning eng yaxshi o‘qituvchisi</span><b>${esc(tt.name)}</b><span class="small">${fmtAvg(tt.score)} ball · ${tt.open_lessons} ochiq dars</span></div></button>` : ""}</div></section>` : "";
-    const tile = (label, v, bg, route) => `<button type="button" class="stat" style="background:${bg};border:0;text-align:left" data-a="go" data-r="${route}"><span class="small muted">${label}</span><span class="v">${v}</span></button>`;
-    return `<div class="row wrap" style="gap:12px">${tile("O‘quvchilar", c.students, "var(--accent-soft)", "students")}${tile("O‘qituvchilar", c.teachers, "var(--gold-soft)", "teachers")}${tile("Sinflar", c.classes, "var(--info-soft)", "classes")}${tile("Ota-onalar", c.parents, "var(--surface-2)", STAFF.includes(role()) ? "people" : "students")}</div>
+    const R = FINANCE.includes(role()) ? data("/reports/months") : null;
+    const ms = R?.months?.slice(-6) || [];
+    const prev = ms[ms.length - 2], pct = (a, b) => (a ? Math.round(((b - a) / Math.abs(a)) * 100) : null);
+    return `${greeting(user().name)}
+      <div class="tiles">
+        ${tile({ icon: "users", label: "O‘quvchilar", value: String(c.students), tone: "green", route: "students", spark: ms.map((m) => m.students) })}
+        ${tile({ icon: "user", label: "O‘qituvchilar", value: String(c.teachers), tone: "yellow", route: "teachers" })}
+        ${tile({ icon: "calendar", label: "Bugun darslar", value: `${c.ended + c.live}`, tone: "mint", route: STAFF.includes(role()) ? "classes" : "home" })}
+        ${tile({ icon: "school", label: "Sinflar", value: String(c.classes), tone: "lav", route: STAFF.includes(role()) ? "classes" : "home" })}
+      </div>
       ${c.unlocks && STAFF.includes(role()) ? `<button type="button" class="doc-row" style="border:0;background:var(--warn-soft);color:var(--warn);text-align:left" data-a="go" data-r="unlocks">${ic("key", 18)}<b class="grow">${c.unlocks} ta o‘qituvchi tahrirlash uchun ruxsat so‘ramoqda</b>${ic("chevron", 16)}</button>` : ""}
-      ${f ? `<section class="card">${cardHead(`Moliya — ${fmtMonth(f.month)}`, linkTo("Hisobotlar →", "reports"))}<div class="row wrap" style="gap:10px">
-        <div class="stat" style="background:var(--accent-soft)"><span class="small muted">Kirim</span><span class="v">${fmtMln(f.income)}</span></div>
-        <div class="stat" style="background:var(--gold-soft)"><span class="small muted">Chiqim</span><span class="v">${fmtMln(f.salaries + f.expenses)}</span><span class="xs">oylik ${fmtMln(f.salaries)} · xarajat ${fmtMln(f.expenses)}</span></div>
-        <div class="stat" style="background:${f.profit < 0 ? "var(--bad-soft)" : "var(--info-soft)"}"><span class="small muted">Sof foyda</span><span class="v" style="color:${f.profit < 0 ? "var(--bad)" : "inherit"}">${fmtMln(f.profit)}</span></div></div></section>` : ""}
-      ${heroes}
+      ${f ? `<div class="tiles">
+        ${tile({ icon: "wallet", label: `Kirim · ${fmtMonth(f.month)}`, value: fmtMln(f.income), tone: "green", route: "ledger", spark: ms.map((m) => m.income) })}
+        ${tile({ icon: "receipt", label: "Chiqim", value: fmtMln(f.salaries + f.expenses), tone: "yellow", route: "ledger", spark: ms.map((m) => m.out) })}
+        ${tile({ icon: "chart", label: "Sof foyda", value: fmtMln(f.profit), tone: f.profit < 0 ? "rose" : "sky", route: "reports", spark: ms.map((m) => m.profit) })}
+      </div>` : ""}
+      <div class="grid" style="--min:340px">${heroes || ""}${banner({ title: "Bilim bilan parvoz qiling!", btn: "Yangilik e’lon qilish", route: "news" })}</div>
       ${liveBlock()}
       <div class="grid" style="--min:320px">
         <section class="card">${cardHead("Hafta o‘quvchilari", linkTo("Reyting →", "ratings"))}<div class="col" style="gap:4px">${d.topStudents.map((x, i) => `<button type="button" class="rank-row" style="width:100%;text-align:left;background:transparent" data-a="go" data-r="student-${x.id}">${rankMark(i + 1)}${ava(x, 36)}<div class="col grow"><b class="small">${esc(sName(x))}</b><span class="xs muted">${esc(x.class_name || "")}</span></div><b style="color:${avgColor(x.avg)}">${fmtAvg(x.avg)}</b></button>`).join("") || empty("Bu hafta baholar yo‘q")}</div></section>
@@ -59,6 +68,7 @@ VIEWS["admin:home"] = {
   },
 };
 
+SUBMITS.gsearch = () => { S.f.stq = fv("gq"); S.f.gq = ""; go("students"); };
 ACTIONS["a-cele"] = () => { openModal({ type: "admin-celebrate" }); confetti(); };
 MODALS["admin-celebrate"] = () => {
   const d = data("/dashboard"); if (!d) return "";

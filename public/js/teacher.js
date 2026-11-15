@@ -2,7 +2,7 @@
 import {
   S, VIEWS, ACTIONS, SUBMITS, MODALS, NAV, render, go, api, post, patch, put, run, busy, data, pending, invalidate, toast, openModal, closeModal, modalHead,
   esc, ic, badge, seg, cardHead, empty, bar, field, fv, fill, starsHtml, rankMark, avgColor, ava, fileBox, fileLinks, linkTo,
-  fmtDay, fmtDate, fmtWhen, fmtMonth, fmtAvg, hm, sName, today, curMonth, wdOf, WD, user, settings, periodTimes, tzNow, celebrateOnce, CUP, confetti,
+  fmtDay, fmtDate, fmtWhen, fmtMonth, fmtAvg, hm, sName, today, curMonth, wdOf, WD, user, settings, periodTimes, tzNow, celebrateOnce, CUP, confetti, greeting, tile,
 } from "./core.js";
 import { reviewItem, postCard } from "./common.js";
 
@@ -20,13 +20,21 @@ function timing(date, period) {
 
 /* ================= today ================= */
 VIEWS["teacher:today"] = {
-  title: () => `Bugun, ${fmtDay(today())}`,
+  title: "Bugun", noHead: true,
   render() {
     const tr = data("/ratings/teachers?month=" + curMonth());
     const me = tr?.rows?.find((x) => x.id === user().id);
     if (me && me.rank === 1 && (me.votes || me.open_lessons)) celebrateOnce(`sp.cele.t${user().id}.${curMonth()}`, { type: "teacher-celebrate", extra: JSON.stringify(me) });
     const banner = me && me.rank <= 3 ? `<section class="card" style="background:${me.rank === 1 ? "var(--gold-soft)" : "var(--accent-soft)"};border-color:${me.rank === 1 ? "var(--gold)" : "var(--line)"}"><div class="row">${rankMark(me.rank)}<div class="col grow"><b>${me.rank === 1 ? "Siz oyning eng yaxshi o‘qituvchisisiz!" : `Siz o‘qituvchilar reytingida ${me.rank}-o‘rindasiz`}</b><span class="small muted">${fmtMonth(curMonth())} · ${fmtAvg(me.score)} ball · ${me.stars != null ? fmtAvg(me.stars) + " ★, " : ""}${me.open_lessons} ochiq dars</span></div>${me.rank === 1 ? `<button type="button" class="btn sm" data-a="t-cele">${ic("trophy", 16)}</button>` : ""}</div></section>` : "";
-    return banner + todayBody();
+    const d = today(), list = data(`/lessons?from=${d}&to=${d}`) || [];
+    const t = data("/teachers/" + user().id);
+    const avg = t?.reviews?.length ? t.reviews.reduce((a, x) => a + x.stars, 0) / t.reviews.length : null;
+    const tiles = `<div class="tiles four">
+      ${tile({ icon: "calendar", label: "Bugungi darslar", value: String(list.length), tone: "green", route: "schedule" })}
+      ${tile({ icon: "check", label: "Yakunlangan", value: String(list.filter((l) => l.status === "ended").length), tone: "mint" })}
+      ${tile({ icon: "trophy", label: "Oy reytingi", value: me ? `${me.rank}/${tr.rows.length}` : "—", tone: "lav", route: "ratings" })}
+      ${tile({ icon: "star", label: "Ota-onalar bahosi", value: avg ? fmtAvg(avg) : "—", tone: "yellow", route: "reviews" })}</div>`;
+    return greeting(user().name) + tiles + banner + todayBody();
   },
 };
 ACTIONS["t-cele"] = () => { const tr = data("/ratings/teachers?month=" + curMonth()); const me = tr?.rows?.find((x) => x.id === user().id); if (me) { openModal({ type: "teacher-celebrate", extra: JSON.stringify(me) }); confetti(); } };

@@ -3,7 +3,7 @@ import {
   S, VIEWS, ACTIONS, SUBMITS, MODALS, render, go, api, post, patch, del, put, run, busy, data, pending, invalidate, toast, openModal, closeModal, modalHead,
   esc, ic, badge, seg, pills, cardHead, empty, bar, field, fv, fill, starsHtml, rankMark, avgColor, ava, avaEdit, fileBox, fileLinks, fileUrl, isImg, pdfBtn,
   fmtDay, fmtDate, fmtTime, fmtWhen, fmtMonth, fmtNum, fmtSum, fmtAvg, fmtPhone, fmtSize, hm, sName, initials, today, curMonth, addDays, mondayOf, monthShift, monthEnd, wdOf,
-  WD, WDS, MONTHS_S, ROLE_L, ADMINS, STAFF, FINANCE, user, role, group, settings, periodTimes, setToken, loadMe, linkTo, tzNow, fmtLocal, FLAG,
+  WD, WDS, MONTHS, MONTHS_S, ROLE_L, ADMINS, STAFF, FINANCE, user, role, group, settings, periodTimes, setToken, loadMe, linkTo, tzNow, fmtLocal, FLAG, ring, subjTone, TONE, PLANE, greeting, tile, banner, sparkline,
 } from "./core.js";
 
 /* ================= login ================= */
@@ -12,7 +12,7 @@ VIEWS["*:login"] = {
   render() {
     const sch = settings().school || {};
     return `<div class="login ios">
-      <div class="login-top"><div class="app-icon"><img src="/logo-mark.png" alt=""></div><h1>${esc(sch.name || "Steam Plaza")}</h1><p>Dars jadvali, baholar, uyga vazifa, reyting va to‘lovlar — ota-onalar, o‘qituvchilar va maktab uchun.</p></div>
+      <div class="login-top"><div class="app-icon"><img src="/logo-mark.png" alt=""></div><h1>${esc(sch.name || "Steam Plaza")}</h1><p>Innovatsion ta’lim — yorqin kelajak uchun</p>${PLANE}</div>
       <form class="login-sheet" data-submit="login">
         <h2>Kirish</h2>
         <div class="group">
@@ -201,19 +201,25 @@ function trendChart(trend) {
 
 /** Homework by day with done / not done marks. */
 export function homeworkPanel(sid) {
-  const to = S.ui["hwTo" + sid] || today(), from = addDays(to, -13);
+  const mon = mondayOf(today());
+  const weeks = [0, 1, 2, 3].map((i) => { const f = addDays(mon, -7 * i); return [f, addDays(f, 5)]; });
+  const wi = Number(S.ui["hwW" + sid] || 0), [from, to] = weeks[wi];
   const path = `/students/${sid}/homework?from=${from}&to=${to}`;
   const list = data(path);
-  const nav = `<div class="row between"><button type="button" class="btn sec sm" data-a="set" data-k="hwTo${sid}" data-v="${addDays(to, -14)}">${ic("back", 16)} Oldingi</button><span class="small b">${fmtDay(from)} — ${fmtDay(to)}</span><button type="button" class="btn sec sm" data-a="set" data-k="hwTo${sid}" data-v="${addDays(to, 14) > today() ? today() : addDays(to, 14)}" ${to >= today() ? "disabled" : ""}>Keyingi ${ic("chevron", 16)}</button></div>`;
-  if (list === undefined) return nav + pending(path);
-  if (!list.length) return nav + empty("Bu oraliqda darslar yo‘q");
-  const days = [...new Set(list.map((l) => l.date))];
-  return nav + days.map((d) => {
-    const ls = list.filter((l) => l.date === d && l.homework);
-    const done = ls.filter((l) => l.done === true).length, missed = ls.filter((l) => l.done === false).length;
-    return `<div class="col" style="gap:6px"><div class="row between"><b>${WD[wdOf(d)]}, ${fmtDay(d)}</b><span class="row" style="gap:6px">${done ? badge(`${done} bajarildi`, "green") : ""}${missed ? badge(`${missed} bajarilmadi`, "red") : ""}</span></div>
-      ${ls.length ? `<div class="list">${ls.map((l) => `<div class="row" style="align-items:flex-start"><span class="hw-mark ${l.done === true ? "ok" : l.done === false ? "no" : ""}" title="${l.done === true ? "Bajarilgan" : l.done === false ? "Bajarilmagan" : "Hali tekshirilmagan"}">${l.done === true ? ic("check", 16) : l.done === false ? ic("close", 14) : ic("clock", 14)}</span><div class="col grow"><div class="row between"><b class="small">${esc(l.subject)}</b>${l.grade ? `<span class="grade g${l.grade}">${l.grade}</span>` : ""}</div><span>${esc(l.homework)}</span>${fileLinks(l.hw_files)}<span class="xs muted">Mavzu: ${esc(l.topic || "—")} · ${esc(l.teacher_name)}${l.attendance && l.attendance !== "present" ? " · " + ATT_L[l.attendance][0] : ""}</span></div></div>`).join("")}</div>` : `<span class="small muted">Uyga vazifa berilmagan</span>`}</div>`;
-  }).join("");
+  const label = ([f, t]) => `${Number(f.slice(8))}–${Number(t.slice(8))} ${MONTHS[Number(t.slice(5, 7)) - 1].slice(0, 3)}`;
+  const chips = `<div class="week-chips">${weeks.map((w, i) => `<button type="button" class="week-chip" data-a="set" data-k="hwW${sid}" data-v="${i}" aria-pressed="${i === wi}">${i === 0 ? "Shu hafta · " : ""}${label(w)}</button>`).join("")}</div>`;
+  if (list === undefined) return chips + pending(path);
+  const items = list.filter((l) => l.homework);
+  const done = items.filter((l) => l.done === true).length, missed = items.filter((l) => l.done === false).length, waiting = items.length - done - missed;
+  const flt = S.ui["hwF" + sid] || "all";
+  const shown = items.filter((l) => flt === "all" || (flt === "done" ? l.done === true : flt === "missed" ? l.done === false : l.done == null));
+  const summary = `<div class="ring-card">${ring(items.length ? (done / items.length) * 100 : 0, "bajarilgan")}<div class="col grow" style="gap:6px"><span class="muted small">Bajarilgan</span><b style="font-size:24px">${done} / ${items.length}</b>${bar(items.length ? (done / items.length) * 100 : 0)}<span class="xs muted">${missed} ta bajarilmagan · ${waiting} ta hali tekshirilmagan</span></div></div>`;
+  const filters = seg("hwF" + sid, flt, [["all", "Hammasi"], ["done", "Bajarilgan"], ["wait", "Kutilmoqda"], ["missed", "Bajarilmagan"]]);
+  const days = [...new Set(shown.map((l) => l.date))];
+  const pill = (l) => (l.done === true ? `<span class="st-pill ok">Bajarildi <i>${ic("check", 12)}</i></span>` : l.done === false ? `<span class="st-pill no">Bajarilmadi <i>${ic("close", 11)}</i></span>` : `<span class="st-pill wait">Kutilmoqda <i>${ic("clock", 11)}</i></span>`);
+  const body = days.length ? days.map((d) => `<div class="day-h ${d < today() ? "" : "past"}">${d === today() ? "Bugun" : WD[wdOf(d)]}, ${fmtDay(d)}</div>
+    <div class="col" style="gap:4px">${shown.filter((l) => l.date === d).map((l) => { const tn = subjTone(l.subject); return `<div class="hw-item ${l.done === true ? "done" : ""}"><span class="s-dot" style="background:${TONE[tn]}1F;color:${TONE[tn]}">${ic("book", 17)}</span><div class="col grow"><b style="color:var(--accent-ink)">${esc(l.subject)}</b><span>${esc(l.homework)}</span>${fileLinks(l.hw_files)}<span class="xs muted">${esc(l.topic || "")}${l.topic ? " · " : ""}${esc(l.teacher_name)}${l.grade ? ` · baho: ${l.grade}` : ""}${l.attendance && l.attendance !== "present" ? " · " + ATT_L[l.attendance][0] : ""}</span></div>${pill(l)}</div>`; }).join("")}</div>`).join("") : empty(items.length ? "Bu filtr bo‘yicha vazifa yo‘q" : "Bu haftada uyga vazifa berilmagan");
+  return `${chips}<section class="card">${summary}</section>${filters}<section class="card" style="gap:6px">${body}</section>`;
 }
 
 VIEWS["*:student"] = {
@@ -247,7 +253,7 @@ VIEWS["*:student"] = {
           ${pdfBtn(`/pdf/student/${s.id}`, `${sName(s).replace(/\s+/g, "_")}.pdf`)}</div>
       </section>
       <div class="pills">${tabs.map(([k, l]) => `<button type="button" class="pill" data-a="set" data-k="stab" data-v="${k}" aria-pressed="${k === tab}">${l}</button>`).join("")}</div>
-      <section class="card">${body}</section>`;
+      ${tab === "hw" ? body : `<section class="card">${body}</section>`}`;
   },
 };
 ACTIONS["change:" + "sm"] = () => {};
