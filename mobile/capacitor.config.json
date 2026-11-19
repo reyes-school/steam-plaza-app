@@ -1,0 +1,13 @@
+{
+  "appId": "uz.steamplaza.app",
+  "appName": "Steam Plaza",
+  "webDir": "www",
+  "backgroundColor": "#F5F8F6",
+  "android": { "allowMixedContent": false },
+  "ios": { "contentInset": "never", "scrollEnabled": true, "limitsNavigationsToAppBoundDomains": false },
+  "plugins": {
+    "SplashScreen": { "launchShowDuration": 1500, "launchAutoHide": false, "backgroundColor": "#1A9F5B", "showSpinner": false, "androidScaleType": "CENTER_CROP" },
+    "StatusBar": { "style": "LIGHT", "backgroundColor": "#F5F8F6", "overlaysWebView": false },
+    "Keyboard": { "resize": "native", "resizeOnFullScreen": true }
+  }
+}

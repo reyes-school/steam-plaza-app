@@ -3,14 +3,14 @@ import {
   S, VIEWS, ACTIONS, SUBMITS, MODALS, NAV, render, go, api, post, patch, del, put, run, busy, data, pending, invalidate, toast, openModal, closeModal, modalHead,
   esc, ic, badge, seg, pills, cardHead, empty, bar, field, fv, fill, starsHtml, rankMark, avgColor, ava, avaEdit, fileBox, fileLinks, pdfBtn, uploadFile,
   fmtDay, fmtDate, fmtWhen, fmtMonth, fmtNum, fmtSum, fmtMln, fmtAvg, fmtPhone, hm, sName, today, curMonth, addDays, monthShift, wdOf, WD, WDS, MONTHS_S,
-  ROLE_L, ADMINS, STAFF, FINANCE, user, role, settings, periodTimes, tzNow, loadMe, linkTo, pickAndUpload, celebrateOnce, confetti, CUP, mondayOf, greeting, tile, banner,
+  ROLE_L, ADMINS, STAFF, FINANCE, SECTION_L, branches, branchName, myScope, fq, scopeBar, genPassword, user, role, settings, periodTimes, tzNow, loadMe, linkTo, pickAndUpload, celebrateOnce, confetti, CUP, mondayOf, greeting, tile, banner,
 } from "./core.js";
 import { postCard } from "./common.js";
 
-NAV.owner = [["home", "Bosh sahifa", "grid"], ["students", "O‘quvchilar", "users"], ["teachers", "O‘qituvchilar", "user"], ["classes", "Sinflar va jadval", "calendar"], ["ratings", "Reyting", "trophy"], ["news", "Yangiliklar", "news"],
-  ["ledger", "Kirim-chiqim", "wallet"], ["debts", "Qarzdorlar", "card"], ["reports", "Hisobotlar", "chart"], ["contracts", "Shartnomalar", "file"], ["menu", "Taomnoma", "food"], ["unlocks", "Ruxsatlar", "key"], ["people", "Foydalanuvchilar", "users"], ["settings", "Sozlamalar", "settings"]];
+NAV.owner = [["home", "Umumiy hisobot", "grid"], ["reports", "Hisobotlar", "chart"], ["ledger", "Kirim-chiqim", "wallet"], ["students", "O‘quvchilar", "users"], ["branches", "Filiallar", "school"], ["teachers", "O‘qituvchilar", "user"], ["classes", "Sinflar va jadval", "calendar"], ["absences", "Kelmaslik xabarlari", "bell"],
+  ["debts", "Qarzdorlar", "card"], ["ratings", "Reyting", "trophy"], ["news", "Yangiliklar", "news"], ["contracts", "Shartnomalar", "file"], ["menu", "Taomnoma", "food"], ["unlocks", "Ruxsatlar", "key"], ["people", "Foydalanuvchilar", "users"], ["audit", "Harakatlar jurnali", "key"], ["settings", "Sozlamalar", "settings"]];
 NAV.manager = [["home", "Bosh sahifa", "grid"], ["students", "O‘quvchilar", "users"], ["teachers", "O‘qituvchilar", "user"], ["classes", "Sinflar va jadval", "calendar"], ["ratings", "Reyting", "trophy"], ["news", "Yangiliklar", "news"],
-  ["contracts", "Shartnomalar", "file"], ["debts", "Qarzdorlar", "card"], ["menu", "Taomnoma", "food"], ["unlocks", "Ruxsatlar", "key"], ["people", "Ota-onalar", "users"], ["settings", "Sozlamalar", "settings"]];
+  ["absences", "Kelmaslik xabarlari", "bell"], ["contracts", "Shartnomalar", "file"], ["debts", "Qarzdorlar", "card"], ["menu", "Taomnoma", "food"], ["unlocks", "Ruxsatlar", "key"], ["people", "Ota-onalar", "users"], ["settings", "Sozlamalar", "settings"]];
 NAV.accountant = [["home", "Bosh sahifa", "grid"], ["ledger", "Kirim-chiqim", "wallet"], ["debts", "Qarzdorlar", "card"], ["reports", "Hisobotlar", "chart"], ["contracts", "Shartnomalar", "file"], ["students", "O‘quvchilar", "users"], ["teachers", "O‘qituvchilar", "user"], ["news", "Yangiliklar", "news"]];
 
 const confirmTwice = (key) => { if (S.ui.confirm === key) { S.ui.confirm = null; return true; } S.ui.confirm = key; toast("Tasdiqlash uchun yana bir marta bosing"); return false; };
@@ -33,8 +33,8 @@ function liveBlock() {
 VIEWS["admin:home"] = {
   title: "Bosh sahifa", noHead: true,
   render() {
-    const d = data("/dashboard");
-    if (d === undefined) return pending("/dashboard");
+    const d = data("/dashboard" + fq("?"));
+    if (d === undefined) return pending("/dashboard" + fq("?"));
     const c = d.counts, f = d.finance;
     S.me.badges = { unlocks: c.unlocks };
     const ts = d.topStudents[0], tt = d.topTeachers[0]?.votes || d.topTeachers[0]?.open_lessons ? d.topTeachers[0] : null;
@@ -42,10 +42,11 @@ VIEWS["admin:home"] = {
     const heroes = ts || tt ? `<section class="card heroes">${cardHead("Maktab qahramonlari", `<button type="button" class="btn sm" data-a="a-cele">${ic("trophy", 16)} Tabriklash</button>`)}<div class="row wrap" style="gap:12px">
       ${ts ? `<button type="button" class="hero-tile" data-a="go" data-r="student-${ts.id}">${ava(ts, 56)}<div class="col"><span class="xs muted">Hafta o‘quvchisi</span><b>${esc(sName(ts))}</b><span class="small">${esc(ts.class_name || "")} · o‘rtacha ${fmtAvg(ts.avg)}</span></div></button>` : ""}
       ${tt ? `<button type="button" class="hero-tile" data-a="go" data-r="teacher-${tt.id}">${ava(tt, 56, "t")}<div class="col"><span class="xs muted">Oyning eng yaxshi o‘qituvchisi</span><b>${esc(tt.name)}</b><span class="small">${fmtAvg(tt.score)} ball · ${tt.open_lessons} ochiq dars</span></div></button>` : ""}</div></section>` : "";
-    const R = FINANCE.includes(role()) ? data("/reports/months") : null;
+    const R = FINANCE.includes(role()) ? data("/reports/months" + fq("?")) : null;
     const ms = R?.months?.slice(-6) || [];
     const prev = ms[ms.length - 2], pct = (a, b) => (a ? Math.round(((b - a) / Math.abs(a)) * 100) : null);
-    return `${greeting(user().name)}
+    return `${greeting(user().name)}${scopeBar()}
+      ${c.absences ? `<button type="button" class="doc-row" style="border:0;background:var(--info-soft);color:var(--info);text-align:left" data-a="go" data-r="absences">${ic("bell", 18)}<b class="grow">Bugun ${c.absences} ta o‘quvchi kelmasligi haqida ota-onalar xabar bergan</b>${ic("chevron", 16)}</button>` : ""}
       <div class="tiles">
         ${tile({ icon: "users", label: "O‘quvchilar", value: String(c.students), tone: "green", route: "students", spark: ms.map((m) => m.students) })}
         ${tile({ icon: "user", label: "O‘qituvchilar", value: String(c.teachers), tone: "yellow", route: "teachers" })}
@@ -59,7 +60,7 @@ VIEWS["admin:home"] = {
         ${tile({ icon: "chart", label: "Sof foyda", value: fmtMln(f.profit), tone: f.profit < 0 ? "rose" : "sky", route: "reports", spark: ms.map((m) => m.profit) })}
       </div>` : ""}
       <div class="grid" style="--min:340px">${heroes || ""}${banner({ title: "Bilim bilan parvoz qiling!", btn: "Yangilik e’lon qilish", route: "news" })}</div>
-      ${liveBlock()}
+      ${role() === "owner" ? "" : liveBlock()}
       <div class="grid" style="--min:320px">
         <section class="card">${cardHead("Hafta o‘quvchilari", linkTo("Reyting →", "ratings"))}<div class="col" style="gap:4px">${d.topStudents.map((x, i) => `<button type="button" class="rank-row" style="width:100%;text-align:left;background:transparent" data-a="go" data-r="student-${x.id}">${rankMark(i + 1)}${ava(x, 36)}<div class="col grow"><b class="small">${esc(sName(x))}</b><span class="xs muted">${esc(x.class_name || "")}</span></div><b style="color:${avgColor(x.avg)}">${fmtAvg(x.avg)}</b></button>`).join("") || empty("Bu hafta baholar yo‘q")}</div></section>
         <section class="card">${cardHead("O‘qituvchilar reytingi (oy)", linkTo("Barchasi →", "ratings"))}<div class="col" style="gap:4px">${d.topTeachers.map((x) => `<button type="button" class="rank-row" style="width:100%;text-align:left;background:transparent" data-a="go" data-r="teacher-${x.id}">${rankMark(x.rank)}${ava(x, 36, "t")}<div class="col grow"><b class="small">${esc(x.name)}</b><span class="xs muted">${x.stars != null ? fmtAvg(x.stars) + " ★ · " : ""}${x.open_lessons} ochiq dars</span></div><b>${fmtAvg(x.score)}</b></button>`).join("") || empty("O‘qituvchilar yo‘q")}</div></section>
@@ -93,16 +94,16 @@ VIEWS["admin:students"] = {
   actions: () => (STAFF.includes(role()) ? `<button type="button" class="btn" data-a="modal" data-m="student-new">${ic("plus", 18)} O‘quvchi qo‘shish</button>` : ""),
   render() {
     const cls = S.ui.stCls || "", q = fv("stq").trim(), status = S.ui.stStatus || "active";
-    const path = `/students?status=${status}${cls ? "&class_id=" + cls : ""}`;
+    const path = `/students?status=${status}${cls ? "&class_id=" + cls : ""}${fq()}`;
     const list = data(path);
-    const head = `<div class="row wrap" style="gap:10px"><div class="field" style="flex:1 1 240px"><input class="input" id="stq" data-f="stq" data-live="1" placeholder="Ism, familiya yoki ota-ona telefoni" value="${esc(q)}" aria-label="Qidirish"></div>
-      <select class="input" style="width:auto" data-f="stCls" aria-label="Sinf"><option value="">Barcha sinflar</option>${S.me.classes.map((c) => `<option value="${c.id}" ${String(c.id) === cls ? "selected" : ""}>${esc(c.name)} (${c.size})</option>`).join("")}</select>
+    const head = `${scopeBar()}<div class="row wrap" style="gap:10px"><div class="field" style="flex:1 1 240px"><input class="input" id="stq" data-f="stq" data-live="1" placeholder="Ism, familiya yoki ota-ona telefoni" value="${esc(q)}" aria-label="Qidirish"></div>
+      <select class="input" style="width:auto" data-f="stCls" aria-label="Sinf"><option value="">Barcha sinflar</option>${classesF().map((c) => `<option value="${c.id}" ${String(c.id) === cls ? "selected" : ""}>${esc(c.name)} (${c.size})</option>`).join("")}</select>
       ${seg("stStatus", status, [["active", "O‘qiydi"], ["left", "Ketgan"]])}</div>`;
     if (list === undefined) return head + pending(path);
     const ql = q.toLowerCase();
     const rows = list.filter((s) => !ql || sName(s).toLowerCase().includes(ql) || (s.parent_phone || "").includes(ql.replace(/\s/g, "")));
     return `${head}<section class="card"><span class="small muted">${rows.length} ta o‘quvchi</span>
-      <div class="list">${rows.map((s) => `<button type="button" class="row" style="border:0;background:transparent;width:100%;text-align:left" data-a="go" data-r="student-${s.id}">${ava(s, 42)}<div class="col grow"><b>${esc(sName(s))}</b><span class="small muted">${esc(s.class_name || "Sinfsiz")}${s.parent_name ? ` · ${esc(s.parent_name)}, ${fmtPhone(s.parent_phone)}` : ""}</span></div>${s.monthly_fee != null && FINANCE.includes(role()) ? `<span class="small muted num">${fmtNum(s.monthly_fee)}</span>` : ""}${ic("chevron", 16)}</button>`).join("") || empty("O‘quvchi topilmadi")}</div></section>`;
+      <div class="list">${rows.map((s) => `<button type="button" class="row" style="border:0;background:transparent;width:100%;text-align:left" data-a="go" data-r="student-${s.id}">${ava(s, 42)}<div class="col grow"><b>${esc(sName(s))}</b><span class="small muted">${esc(s.class_name || "Sinfsiz")}${s.section === "kindergarten" ? " · bog‘cha" : ""}${myScope() === null && s.branch_id ? " · " + esc(branchName(s.branch_id)) : ""}${s.parent_name ? ` · ${esc(s.parent_name)}, ${fmtPhone(s.parent_phone)}` : ""}</span></div>${s.monthly_fee != null && FINANCE.includes(role()) ? `<span class="small muted num">${fmtNum(s.monthly_fee)}</span>` : ""}${ic("chevron", 16)}</button>`).join("") || empty("O‘quvchi topilmadi")}</div></section>`;
   },
 };
 ACTIONS["change:stCls"] = (el) => { S.ui.stCls = el.value; };
@@ -112,11 +113,11 @@ MODALS["student-new"] = () => {
   <form class="stack" style="gap:12px" data-submit="student-new">
     <div class="row wrap" style="align-items:flex-start">${field("nlast", "Familiya", { required: true })}${field("nfirst", "Ism", { required: true })}</div>
     <div class="row wrap" style="align-items:flex-start">${field("nbirth", "Tug‘ilgan sana", { type: "date" })}${field("ngender", "Jinsi", { options: [["m", "O‘g‘il"], ["f", "Qiz"]], blank: false })}</div>
-    <div class="row wrap" style="align-items:flex-start">${field("nclass", "Sinf", { options: S.me.classes.map((c) => [c.id, c.name]), required: true })}${field("nfee", "Oylik to‘lov (so‘m)", { mode: "numeric", def: "2000000" })}${field("njoined", "Qabul sanasi", { type: "date", def: today() })}</div>
+    <div class="row wrap" style="align-items:flex-start">${field("nclass", "Sinf / guruh", { options: classOpts(), required: true })}${field("nfee", "Oylik to‘lov (so‘m)", { mode: "numeric", def: "2000000" })}${field("njoined", "Qabul sanasi", { type: "date", def: today() })}</div>
     ${field("naddr", "Manzil")}${field("nprev", "Avvalgi maktab (ko‘chib kelgan bo‘lsa)")}
     <div class="col" style="gap:8px;border-top:1px solid var(--line);padding-top:12px"><div class="row between"><b>Ota-ona</b>${seg("parentMode", existing ? "existing" : "new", [["new", "Yangi"], ["existing", "Mavjud"]])}</div>
       ${existing ? field("npid", "Ota-ona (ro‘yxatdan)", { options: (data("/users?role=parent") || []).map((p) => [p.id, `${p.name} · ${fmtPhone(p.phone)}`]) }) : `<div class="row wrap" style="align-items:flex-start">${field("npname", "F.I.Sh.", { required: true })}${field("npphone", "Telefon", { phone: true, required: true })}</div>
-      ${field("nppass", "Ota-ona uchun parol", { hint: "Kamida 6 belgi. Ota-onaga shu raqam va parolni bering.", def: S.ui.genPass || (S.ui.genPass = Math.random().toString(36).slice(2, 8)) })}`}</div>
+      ${field("nppass", "Ota-ona uchun parol", { hint: "Kamida 8 belgi, harf va raqam. Ota-onaga shu raqam va parolni bering.", def: S.ui.genPass || (S.ui.genPass = genPassword()) })}`}</div>
     <span class="xs muted">Hujjatlar (metrika, pasport, attestat) va rasmni o‘quvchi sahifasida yuklaysiz.</span>
     <button type="submit" class="btn" ${busy("sn") ? "disabled" : ""}>O‘quvchini qo‘shish</button>
   </form>`;
@@ -145,14 +146,15 @@ const teacherFields = (pre) => `
   <div class="row wrap" style="align-items:flex-start">${field(pre + "exp", "Ish staji (yil)", { mode: "numeric" })}${field(pre + "cat", "Toifa", { ph: "Oliy toifa" })}${field(pre + "salary", "Oylik maosh (so‘m)", { mode: "numeric" })}</div>
   ${field(pre + "edu", "Ma’lumoti", { ph: "TDPU, matematika fakulteti (2010)" })}
   <div class="row wrap" style="align-items:flex-start">${field(pre + "birth", "Tug‘ilgan sana", { type: "date" })}${field(pre + "hired", "Ishga qabul qilingan", { type: "date" })}${field(pre + "pass", "Pasport", { ph: "AA1234567" })}</div>
+  ${myScope() === null ? field(pre + "branch", "Asosiy filiali", { options: [["", "Bir nechta / belgilanmagan"], ...branches().map((b) => [String(b.id), b.name])], blank: false, hint: "Oylik shu filial hisobiga yoziladi" }) : ""}
   ${field(pre + "addr", "Manzil")}${field(pre + "ach", "Yutuqlari va sertifikatlari", { area: true })}${field(pre + "about", "O‘zi haqida (ota-onalarga ko‘rinadi)", { area: true })}`;
 const teacherProfile = (pre) => ({ position: fv(pre + "pos"), subjects: fv(pre + "subj"), gender: fv(pre + "gender", "m"), experience: fv(pre + "exp"), category: fv(pre + "cat"), salary: fv(pre + "salary"), education: fv(pre + "edu"), birthDate: fv(pre + "birth"), hiredOn: fv(pre + "hired"), passport: fv(pre + "pass"), address: fv(pre + "addr"), achievements: fv(pre + "ach"), about: fv(pre + "about") });
 MODALS["teacher-new"] = () => `${modalHead("Yangi o‘qituvchi", "Telefon raqami va parol bilan tizimga kiradi")}
   <form class="stack" style="gap:12px" data-submit="teacher-new">${teacherFields("tn")}
-    ${field("tnpw", "Parol", { def: S.ui.genPass || (S.ui.genPass = Math.random().toString(36).slice(2, 8)), hint: "Kamida 6 belgi. O‘qituvchiga shu raqam va parolni bering." })}
+    ${field("tnpw", "Parol", { def: S.ui.genPass || (S.ui.genPass = genPassword()), hint: "Kamida 8 belgi, harf va raqam. O‘qituvchiga shu raqam va parolni bering." })}
     <button type="submit" class="btn" ${busy("tn") ? "disabled" : ""}>Qo‘shish</button></form>`;
 SUBMITS["teacher-new"] = async () => {
-  const u = await run("tn", () => post("/users", { role: "teacher", name: fv("tnname"), phone: fv("tnphone"), password: fv("tnpw", S.ui.genPass), profile: teacherProfile("tn") }), { ok: "O‘qituvchi qo‘shildi", invalidate: ["/teachers", "/dashboard", "/ratings"] });
+  const u = await run("tn", () => post("/users", { role: "teacher", name: fv("tnname"), phone: fv("tnphone"), password: fv("tnpw", S.ui.genPass), branch_id: Number(fv("tnbranch")) || null, profile: teacherProfile("tn") }), { ok: "O‘qituvchi qo‘shildi", invalidate: ["/teachers", "/dashboard", "/ratings"] });
   for (const k of Object.keys(S.f)) if (k.startsWith("tn")) S.f[k] = ""; S.ui.genPass = null;
   closeModal(); go("teacher-" + u.id);
 };
@@ -160,7 +162,7 @@ MODALS["teacher-edit"] = (m) => {
   const t = data("/teachers/" + m.id) || {};
   if (S.ui.teFilled !== m.id) {
     const p = t.profile || {};
-    fill({ tename: t.name, tephone: t.phone, tepos: p.position, tesubj: p.subjects, tegender: p.gender || "m", teexp: p.experience, tecat: p.category, tesalary: p.salary, teedu: p.education, tebirth: p.birthDate, tehired: p.hiredOn, tepass: p.passport, teaddr: p.address, teach: p.achievements, teabout: p.about, tepw: "" });
+    fill({ tebranch: t.branch_id ? String(t.branch_id) : "", tename: t.name, tephone: t.phone, tepos: p.position, tesubj: p.subjects, tegender: p.gender || "m", teexp: p.experience, tecat: p.category, tesalary: p.salary, teedu: p.education, tebirth: p.birthDate, tehired: p.hiredOn, tepass: p.passport, teaddr: p.address, teach: p.achievements, teabout: p.about, tepw: "" });
     S.ui.teFilled = m.id;
   }
   return `${modalHead("O‘qituvchi ma’lumotlari", esc(t.name || ""))}
@@ -171,6 +173,7 @@ MODALS["teacher-edit"] = (m) => {
 };
 SUBMITS["teacher-edit"] = async (form) => {
   const body = { name: fv("tename"), phone: fv("tephone"), profile: teacherProfile("te") };
+  if (myScope() === null && role() === "owner") body.branch_id = Number(fv("tebranch")) || null;
   if (fv("tepw")) body.password = fv("tepw");
   await run("te", () => patch("/users/" + form.dataset.v, body), { ok: "Saqlandi", invalidate: ["/teachers", "/ratings"] });
   S.ui.teFilled = null; closeModal();
@@ -193,21 +196,22 @@ VIEWS["admin:classes"] = {
 function classesTab() {
   const teachers = data("/teachers") || [];
   return `<section class="card">${cardHead("Sinflar", `<button type="button" class="btn sm" data-a="modal" data-m="class-edit">${ic("plus", 16)} Sinf qo‘shish</button>`)}
-    <div class="list">${S.me.classes.map((c) => `<div class="row"><span class="avatar">${esc(c.name)}</span><div class="col grow"><b>${esc(c.name)} sinf</b><span class="small muted">${c.size} o‘quvchi${c.leader_name ? " · Sinf rahbari: " + esc(c.leader_name) : ""}${c.room ? " · " + esc(c.room) + "-xona" : ""}</span></div><button type="button" class="btn sec sm" data-a="modal" data-m="class-edit" data-v="${c.id}">${ic("edit", 15)}</button></div>`).join("") || empty("Sinflar yo‘q")}</div></section>`;
+    ${scopeBar()}<div class="list">${classesF().map((c) => `<div class="row"><span class="avatar">${esc(c.name.slice(0, 4))}</span><div class="col grow"><b>${esc(c.name)}${c.section === "kindergarten" ? "" : " sinf"} <span class="xs muted">${SECTION_L[c.section] || ""}${myScope() === null ? " · " + esc(branchName(c.branch_id)) : ""}</span></b><span class="small muted">${c.size} o‘quvchi${c.leader_name ? " · Sinf rahbari: " + esc(c.leader_name) : ""}${c.room ? " · " + esc(c.room) + "-xona" : ""}</span></div><button type="button" class="btn sec sm" data-a="modal" data-m="class-edit" data-v="${c.id}">${ic("edit", 15)}</button></div>`).join("") || empty("Sinflar yo‘q")}</div></section>`;
 }
 MODALS["class-edit"] = (m) => {
   const c = S.me.classes.find((x) => x.id === m.id);
-  if (S.ui.ceFilled !== (m.id || "new")) { fill({ cname: c?.name, croom: c?.room, cleader: c?.leader_id }); S.ui.ceFilled = m.id || "new"; }
+  if (S.ui.ceFilled !== (m.id || "new")) { fill({ cname: c?.name, croom: c?.room, cleader: c?.leader_id, cbranch: c?.branch_id || S.ui.fb || myScope() || branches()[0]?.id, csec: c?.section || S.ui.fs || "school" }); S.ui.ceFilled = m.id || "new"; }
   const teachers = (data("/teachers") || []).filter((t) => t.active);
   return `${modalHead(c ? `${c.name} sinf` : "Yangi sinf")}
     <form class="stack" style="gap:12px" data-submit="class-edit" data-v="${m.id || ""}">
-      <div class="row wrap" style="align-items:flex-start">${field("cname", "Sinf nomi", { ph: "5-A", required: true })}${field("croom", "Xona", { ph: "101" })}</div>
-      ${field("cleader", "Sinf rahbari", { options: teachers.map((t) => [t.id, t.name]) })}
+      <div class="row wrap" style="align-items:flex-start">${myScope() === null ? field("cbranch", "Filial", { options: branches().map((b) => [b.id, b.name]), blank: false }) : ""}${field("csec", "Bo‘lim", { options: [["school", "Maktab"], ["kindergarten", "Bog‘cha"]], blank: false })}</div>
+      <div class="row wrap" style="align-items:flex-start">${field("cname", fv("csec") === "kindergarten" ? "Guruh nomi" : "Sinf nomi", { ph: fv("csec") === "kindergarten" ? "Quyoshcha guruhi" : "5-A", required: true })}${field("croom", "Xona", { ph: "101" })}</div>
+      ${field("cleader", fv("csec") === "kindergarten" ? "Tarbiyachi" : "Sinf rahbari", { options: teachers.map((t) => [t.id, t.name]) })}
       <div class="row wrap" style="gap:8px"><button type="submit" class="btn" ${busy("ce") ? "disabled" : ""}>Saqlash</button>${c ? `<button type="button" class="btn sec" style="color:var(--bad)" data-a="class-del" data-v="${c.id}">O‘chirish</button>` : ""}</div>
     </form>`;
 };
 SUBMITS["class-edit"] = async (form) => {
-  const body = { name: fv("cname"), room: fv("croom"), leader_id: fv("cleader") || null };
+  const body = { name: fv("cname"), room: fv("croom"), leader_id: fv("cleader") || null, branch_id: Number(fv("cbranch")) || null, section: fv("csec", "school") };
   await run("ce", () => (form.dataset.v ? patch("/classes/" + form.dataset.v, body) : post("/classes", body)), { ok: "Saqlandi", invalidate: ["/schedule", "/dashboard"] });
   S.ui.ceFilled = null; await loadMe(); closeModal();
 };
@@ -237,13 +241,13 @@ SUBMITS.bell = async () => {
   await loadMe(); S.ui.bellFilled = false; render();
 };
 function scheduleEditor() {
-  const classes = S.me.classes;
-  if (!classes.length) return `<section class="card">${empty("Avval sinf qo‘shing")}</section>`;
-  const cls = Number(S.ui.seCls) || classes[0].id;
+  const classes = classesF().filter((c) => c.section !== "kindergarten");
+  if (!classes.length) return `${scopeBar({ section: false })}<section class="card">${empty("Avval sinf qo‘shing")}</section>`;
+  const cls = classes.some((c) => c.id === Number(S.ui.seCls)) ? Number(S.ui.seCls) : classes[0].id;
   const rows = data("/schedule?class_id=" + cls);
   const teachers = (data("/teachers") || []).filter((t) => t.active);
   const times = periodTimes(settings().bell);
-  const head = `<div class="row wrap between"><select class="input" style="width:auto" data-f="seCls" aria-label="Sinf">${classes.map((c) => `<option value="${c.id}" ${c.id === cls ? "selected" : ""}>${esc(c.name)}</option>`).join("")}</select><span class="small muted">Katakni bosib fan va o‘qituvchini tanlang. O‘qituvchi bir vaqtda ikki sinfda bo‘la olmaydi.</span></div>`;
+  const head = `${scopeBar({ section: false })}<div class="row wrap between"><select class="input" style="width:auto" data-f="seCls" aria-label="Sinf">${classes.map((c) => `<option value="${c.id}" ${c.id === cls ? "selected" : ""}>${esc(c.name)}${myScope() === null ? " · " + esc(branchName(c.branch_id)) : ""}</option>`).join("")}</select><span class="small muted">Katakni bosib fan va o‘qituvchini tanlang. O‘qituvchi bir vaqtda ikki sinfda bo‘la olmaydi.</span><button type="button" class="btn sec sm" data-a="modal" data-m="substitute">${ic("user", 15)} O‘rinbosar tayinlash</button></div>`;
   if (rows === undefined) return head + pending("/schedule?class_id=" + cls);
   return `${head}<div class="table-wrap"><div class="tt">${["", 1, 2, 3, 4, 5, 6].map((d) => `<div class="small b muted" style="padding:6px">${d ? WD[d] : ""}</div>`).join("")}
     ${times.map((t) => `<div class="small muted" style="padding:6px"><b style="color:var(--ink)">${t.period}</b><br>${hm(t.start)}</div>${[1, 2, 3, 4, 5, 6].map((d) => { const r = rows.find((x) => x.weekday === d && x.period === t.period); return `<button type="button" class="cell" style="border:0;text-align:left;cursor:pointer;${r ? "background:var(--accent-soft)" : ""}" data-a="modal" data-m="sched-cell" data-v="${cls}" data-x="${d}:${t.period}">${r ? `<b>${esc(r.subject)}</b><br><span class="xs muted">${esc(r.teacher_name)}</span>` : `<span class="xs muted">+ qo‘shish</span>`}</button>`; }).join("")}`).join("")}
@@ -287,8 +291,8 @@ VIEWS["admin:people"] = {
     const q = fv("uq").toLowerCase();
     const shown = rows.filter((u) => !q || u.name.toLowerCase().includes(q) || u.phone.includes(q.replace(/\s/g, "")));
     return `${head}<div class="field"><input class="input" id="uq" data-f="uq" data-live="1" placeholder="Ism yoki telefon" value="${esc(fv("uq"))}" aria-label="Qidirish"></div>
-      <section class="card"><div class="list">${shown.map((u) => `<div class="row" style="${u.active ? "" : "opacity:.55"}">${ava(u, 40, "t")}<div class="col grow"><b>${esc(u.name)}</b><span class="small muted">${ROLE_L[u.role]} · ${fmtPhone(u.phone)}${u.role === "parent" ? ` · ${u.children} farzand` : ""}${u.active ? "" : " · faol emas"}</span></div><button type="button" class="btn sec sm" data-a="modal" data-m="user-edit" data-v="${u.id}" data-x="${tab}">${ic("edit", 15)}</button></div>`).join("") || empty("Topilmadi")}</div></section>
-      <section class="card" style="background:var(--surface-2)"><span class="small"><b>Rollar:</b> Bosh admin — hammasi; Menejer — o‘quvchi, o‘qituvchi, ota-ona, sinflar, jadval, yangiliklar; Buxgalter — to‘lovlar, oyliklar, xarajatlar va hisobotlar; O‘qituvchi — o‘z darslari; Ota-ona — o‘z farzandi.</span></section>`;
+      <section class="card"><div class="list">${shown.map((u) => `<div class="row" style="${u.active ? "" : "opacity:.55"}">${ava(u, 40, "t")}<div class="col grow"><b>${esc(u.name)}</b><span class="small muted">${ROLE_L[u.role]}${u.branch_name ? " · " + esc(u.branch_name) : ["manager", "accountant"].includes(u.role) ? (u.role === "accountant" ? " · filial yo‘q!" : " · barcha filiallar") : ""} · ${fmtPhone(u.phone)}${u.role === "parent" ? ` · ${u.children} farzand` : ""}${u.active ? "" : " · faol emas"}</span></div><button type="button" class="btn sec sm" data-a="modal" data-m="user-edit" data-v="${u.id}" data-x="${tab}">${ic("edit", 15)}</button></div>`).join("") || empty("Topilmadi")}</div></section>
+      <section class="card" style="background:var(--surface-2)"><span class="small"><b>Rollar:</b> Bosh admin — hammasi, barcha filiallar; Menejer — o‘quvchi, o‘qituvchi, ota-ona, sinflar, jadval, yangiliklar (filial biriktirilsa — faqat o‘sha filial); Buxgalter — faqat o‘z filialining to‘lovlari, oyliklari, xarajatlari va hisobotlari; O‘qituvchi — o‘z darslari; Ota-ona — o‘z farzandi.</span></section>`;
   },
 };
 MODALS["user-new"] = () => {
@@ -297,28 +301,33 @@ MODALS["user-new"] = () => {
     <form class="stack" style="gap:12px" data-submit="user-new">
       ${field("unrole", "Rol", { options: roles, blank: false, def: roles[0][0] })}
       <div class="row wrap" style="align-items:flex-start">${field("unname", "F.I.Sh.", { required: true })}${field("unphone", "Telefon (login)", { phone: true, required: true })}</div>
+      ${["manager", "accountant"].includes(fv("unrole")) ? field("unbranch", "Filial", { options: (fv("unrole") === "manager" ? [["", "Barcha filiallar"]] : []).concat(branches().map((b) => [String(b.id), b.name])), blank: false, hint: fv("unrole") === "accountant" ? "Buxgalter faqat shu filialni ko‘radi" : "Filial tanlansa, menejer faqat shu filialni boshqaradi" }) : ""}
       ${field("unpos", "Lavozim / izoh", { ph: "Masalan, o‘quv ishlari bo‘yicha menejer" })}
-      ${field("unpw", "Parol", { def: S.ui.genPass || (S.ui.genPass = Math.random().toString(36).slice(2, 8)), hint: "Kamida 6 belgi" })}
+      ${field("unpw", "Parol", { def: S.ui.genPass || (S.ui.genPass = genPassword()), hint: "Kamida 8 belgi, harf va raqam" })}
       <button type="submit" class="btn" ${busy("un") ? "disabled" : ""}>Qo‘shish</button></form>`;
 };
 SUBMITS["user-new"] = async () => {
-  await run("un", () => post("/users", { role: fv("unrole", "parent"), name: fv("unname"), phone: fv("unphone"), password: fv("unpw", S.ui.genPass), profile: { position: fv("unpos") } }), { ok: "Foydalanuvchi qo‘shildi", invalidate: ["/users", "/dashboard"] });
+  await run("un", () => post("/users", { role: fv("unrole", "parent"), name: fv("unname"), phone: fv("unphone"), password: fv("unpw", S.ui.genPass), branch_id: Number(fv("unbranch", fv("unrole") === "accountant" ? String(branches()[0]?.id || "") : "")) || null, profile: { position: fv("unpos") } }), { ok: "Foydalanuvchi qo‘shildi", invalidate: ["/users", "/dashboard"] });
   for (const k of ["unname", "unphone", "unpos", "unpw"]) S.f[k] = ""; S.ui.genPass = null; closeModal();
 };
 MODALS["user-edit"] = (m) => {
   const list = data(m.extra === "staff" ? "/users" : "/users?role=parent") || [];
   const u = list.find((x) => x.id === m.id) || {};
-  if (S.ui.ueFilled !== m.id) { fill({ uename: u.name, uephone: u.phone, uepos: u.profile?.position || u.profile?.workplace || "", uepw: "" }); S.ui.ueFilled = m.id; }
+  if (S.ui.ueFilled !== m.id) { fill({ uename: u.name, uephone: u.phone, uepos: u.profile?.position || u.profile?.workplace || "", uepw: "", uebranch: u.branch_id ? String(u.branch_id) : "" }); S.ui.ueFilled = m.id; }
   return `${modalHead(u.name || "Foydalanuvchi", ROLE_L[u.role] || "")}
     <form class="stack" style="gap:12px" data-submit="user-edit" data-v="${m.id}">
       <div class="row wrap" style="align-items:flex-start">${field("uename", "F.I.Sh.", { required: true })}${field("uephone", "Telefon (login)", { phone: true })}</div>
-      ${field("uepw", "Yangi parol", { hint: "Ota-ona yoki xodim parolni unutsa, yangisini shu yerda bering" })}
+      ${role() === "owner" && ["manager", "accountant"].includes(u.role) ? field("uebranch", "Filial", { options: (u.role === "manager" ? [["", "Barcha filiallar"]] : []).concat(branches().map((b) => [String(b.id), b.name])), blank: false }) : ""}
+      ${field("uepw", "Yangi parol", { hint: "Ota-ona yoki xodim parolni unutsa, yangisini shu yerda bering. Eski parol bilan kirgan qurilmalar chiqarib yuboriladi." })}
       <div class="row wrap" style="gap:8px"><button type="submit" class="btn" ${busy("ue") ? "disabled" : ""}>Saqlash</button>${u.id !== user().id ? `<button type="button" class="btn sec" data-a="user-active" data-v="${u.id}" data-on="${u.active ? 0 : 1}">${u.active ? "Bloklash" : "Faollashtirish"}</button>` : ""}</div></form>`;
 };
 SUBMITS["user-edit"] = async (form) => {
   const body = { name: fv("uename"), phone: fv("uephone") };
   if (fv("uepw")) body.password = fv("uepw");
-  await run("ue", () => patch("/users/" + form.dataset.v, body), { ok: "Saqlandi", invalidate: ["/users", "/students"] });
+  const list = data("/users") || data("/users?role=parent") || [];
+  const tu = list.find((x) => String(x.id) === form.dataset.v);
+  if (role() === "owner" && tu && ["manager", "accountant"].includes(tu.role)) body.branch_id = Number(fv("uebranch")) || null;
+  await run("ue", () => patch("/users/" + form.dataset.v, body), { ok: "Saqlandi", invalidate: ["/users", "/students", "/audit"] });
   S.ui.ueFilled = null; closeModal();
 };
 
@@ -366,9 +375,9 @@ VIEWS["admin:contracts"] = {
   title: "Shartnomalar",
   actions: () => `<button type="button" class="btn" data-a="modal" data-m="contract-new">${ic("plus", 18)} Yangi shartnoma</button>`,
   render() {
-    const list = data("/contracts");
-    if (list === undefined) return pending("/contracts");
-    return `<section class="card"><span class="small muted">Shartnomaga ota-ona pasporti, metrika va attestat o‘quvchi sahifasidagi “Hujjatlar” bo‘limida yuklanadi.</span>
+    const list = data("/contracts" + fq("?"));
+    if (list === undefined) return scopeBar() + pending("/contracts" + fq("?"));
+    return `${scopeBar()}<section class="card"><span class="small muted">Shartnomaga ota-ona pasporti, metrika va attestat o‘quvchi sahifasidagi “Hujjatlar” bo‘limida yuklanadi.</span>
       <div class="list">${list.map((c) => `<div class="row wrap"><div class="col grow"><b>${esc(c.student_name)} <span class="muted small">${esc(c.class_name || "")}</span></b><span class="small muted">${esc(c.number)} · ${esc(c.parent_name || "")} · ${fmtDay(c.created_at)} · ${fmtSum(c.monthly)}</span></div>${badge(`Hujjat ${c.docs}/3`, c.docs >= 3 ? "green" : c.docs ? "gold" : "")}${badge(CST[c.status][0], CST[c.status][1])}
         <select class="input" style="width:auto;min-height:38px" data-f="cst${c.id}" aria-label="Holat">${Object.entries(CST).map(([k, v]) => `<option value="${k}" ${k === c.status ? "selected" : ""}>${v[0]}</option>`).join("")}</select>
         <button type="button" class="btn sec sm" data-a="contract-view" data-v="${c.id}">Matn</button><button type="button" class="btn ghost sm" data-a="go" data-r="student-${c.student_id}">O‘quvchi</button></div>`).join("") || empty("Shartnomalar yo‘q")}</div></section>`;
@@ -379,7 +388,7 @@ document.addEventListener("change", async (e) => {
   if (/^cst\d+$/.test(f)) await run("cst", () => patch("/contracts/" + f.slice(3), { status: e.target.value }), { ok: "Holat yangilandi", invalidate: ["/contracts", "/dashboard"] });
 });
 MODALS["contract-new"] = () => `${modalHead("Yangi shartnoma")}<form class="stack" style="gap:12px" data-submit="contract-new">
-  ${field("ctst", "O‘quvchi", { options: (data("/students") || []).map((s) => [s.id, `${sName(s)} · ${s.class_name || ""}`]) })}
+  ${field("ctst", "O‘quvchi", { options: (data("/students?status=active" + fq()) || []).map((s) => [s.id, `${sName(s)} · ${s.class_name || ""}`]) })}
   ${field("ctpar", "Ota-ona F.I.Sh. (bo‘sh qoldirsangiz, hisobdagi ism olinadi)")}${field("ctfee", "Oylik to‘lov (bo‘sh — o‘quvchi kartasidagi summa)", { mode: "numeric" })}
   <button type="submit" class="btn" ${busy("ct") ? "disabled" : ""}>Yaratish</button></form>`;
 SUBMITS["contract-new"] = async () => { await run("ct", () => post("/contracts", { student_id: fv("ctst"), parent_name: fv("ctpar"), monthly: fv("ctfee") }), { ok: "Shartnoma yaratildi", invalidate: ["/contracts", "/students/"] }); closeModal(); };
@@ -397,13 +406,24 @@ ACTIONS["copy-contract"] = async () => { try { await navigator.clipboard.writeTe
 VIEWS["admin:debts"] = {
   title: "Qarzdorlar",
   render() {
-    const list = data("/finance/debts");
-    if (list === undefined) return pending("/finance/debts");
+    const list = data("/finance/debts" + fq("?"));
+    if (list === undefined) return scopeBar() + pending("/finance/debts" + fq("?"));
     const total = list.reduce((a, x) => a + x.debt, 0);
-    return `<div class="row wrap" style="gap:12px"><div class="stat" style="background:var(--bad-soft)"><span class="small muted">Umumiy qarz</span><span class="v" style="color:var(--bad)">${fmtSum(total)}</span></div><div class="stat" style="background:var(--surface-2)"><span class="small muted">Qarzdor o‘quvchilar</span><span class="v">${list.length}</span></div></div>
-      <section class="card"><span class="xs muted">Qarz = oylik to‘lov × qabul qilingan oydan joriy oygacha bo‘lgan oylar − to‘langan summa</span><div class="list">${list.map((x) => `<button type="button" class="row" style="border:0;background:transparent;width:100%;text-align:left" data-a="go" data-r="student-${x.id}"><div class="col grow"><b>${esc(x.last_name + " " + x.first_name)} <span class="small muted">${esc(x.class_name || "")}</span></b><span class="small muted">${esc(x.parent_name || "")} · ${fmtPhone(x.parent_phone)} · oxirgi to‘lov: ${x.last_month ? fmtMonth(x.last_month) : "yo‘q"}</span></div><div class="col" style="align-items:flex-end;gap:0"><b class="neg">${fmtNum(x.debt)}</b><span class="xs muted">${x.monthsOwed} oy</span></div></button>`).join("") || empty("Qarzdorlar yo‘q")}</div></section>`;
+    return `${scopeBar()}<div class="row wrap" style="gap:12px"><div class="stat" style="background:var(--bad-soft)"><span class="small muted">Umumiy qarz</span><span class="v" style="color:var(--bad)">${fmtSum(total)}</span></div><div class="stat" style="background:var(--surface-2)"><span class="small muted">Qarzdor o‘quvchilar</span><span class="v">${list.length}</span></div></div>
+      <section class="card"><span class="xs muted">Qarz = oylik to‘lov × qabul qilingan oydan joriy oygacha bo‘lgan oylar − to‘langan summa</span><div class="list">${list.map((x) => `<button type="button" class="row" style="border:0;background:transparent;width:100%;text-align:left" data-a="go" data-r="student-${x.id}"><div class="col grow"><b>${esc(x.last_name + " " + x.first_name)} <span class="small muted">${esc(x.class_name || "")}${x.section === "kindergarten" ? " · bog‘cha" : ""}${myScope() === null ? " · " + esc(branchName(x.branch_id)) : ""}</span></b><span class="small muted">${esc(x.parent_name || "")} · ${fmtPhone(x.parent_phone)} · oxirgi to‘lov: ${x.last_month ? fmtMonth(x.last_month) : "yo‘q"}</span></div><div class="col" style="align-items:flex-end;gap:0"><b class="neg">${fmtNum(x.debt)}</b><span class="xs muted">${x.monthsOwed} oy</span></div></button>`).join("") || empty("Qarzdorlar yo‘q")}</div></section>`;
   },
 };
+
+/* ================= branch / section helpers ================= */
+/** Classes filtered by the branch/section pills. */
+const classesF = () => S.me.classes.filter((c) => (!S.ui.fb || myScope() !== null || String(c.branch_id) === String(S.ui.fb)) && (!S.ui.fs || c.section === S.ui.fs));
+const classOpts = () => classesF().map((c) => [c.id, `${c.name}${c.section === "kindergarten" ? " (bog‘cha)" : ""}${myScope() === null ? " · " + branchName(c.branch_id) : ""}`]);
+/** Branch (bosh admin only) and section for salaries and expenses. Empty = central / common. */
+function placeFields(pre) {
+  return `${myScope() === null ? field(pre + "br", "Filial", { options: [["", "Markaziy (filialsiz)"], ...branches().map((b) => [String(b.id), b.name])], blank: false, def: S.ui.fb || "" }) : ""}${field(pre + "sec", "Bo‘lim", { options: [["", "Umumiy (maktab va bog‘cha)"], ["school", "Maktab"], ["kindergarten", "Bog‘cha"]], blank: false, def: S.ui.fs || "" })}`;
+}
+const placeBody = (pre) => ({ branch_id: myScope() === null ? Number(fv(pre + "br", S.ui.fb || "")) || null : undefined, section: fv(pre + "sec", S.ui.fs || "") || null });
+for (const k of ["fb", "fs"]) ACTIONS["set:" + k] = () => { S.ui.stCls = ""; S.ui.seCls = ""; };
 
 /* ================= ledger ================= */
 VIEWS["admin:ledger"] = {
@@ -411,17 +431,17 @@ VIEWS["admin:ledger"] = {
   render() {
     const tab = S.ui.lgTab || "pay";
     const month = S.ui.lgMonth || curMonth();
-    const L = data("/finance/ledger?month=" + month);
+    const L = data("/finance/ledger?month=" + month + fq());
     const months = Array.from({ length: 12 }, (_, i) => monthShift(curMonth(), -i));
-    const top = `${seg("lgTab", tab, [["pay", "O‘quvchi to‘lovi"], ["salary", "O‘qituvchi oyligi"], ["expense", "Xarajat"], ["bank", "Bank to‘lovi"]])}`;
+    const top = `${scopeBar()}${seg("lgTab", tab, [["pay", "O‘quvchi to‘lovi"], ["salary", "O‘qituvchi oyligi"], ["expense", "Xarajat"], ["bank", "Bank to‘lovi"]])}`;
     const form = tab === "pay" ? payForm() : tab === "salary" ? salaryForm() : tab === "expense" ? expenseForm() : bankForm();
     let list = "";
-    if (L === undefined) list = pending("/finance/ledger?month=" + month);
+    if (L === undefined) list = pending("/finance/ledger?month=" + month + fq());
     else {
       const items = [
-        ...L.payments.map((p) => ({ k: "payments", id: p.id, at: p.paid_at, in: true, title: `${p.student_name} · ${fmtMonth(p.month)}`, sub: `O‘quvchi to‘lovi · ${p.method || ""}${p.note ? " · " + p.note : ""}`, amount: p.amount, receipt: p.receipt })),
-        ...L.salaries.map((x) => ({ k: "salaries", id: x.id, at: x.paid_at, in: false, title: `${x.teacher_name} · ${fmtMonth(x.month)}`, sub: "O‘qituvchi oyligi", amount: x.amount, receipt: x.receipt })),
-        ...L.expenses.map((e) => ({ k: "expenses", id: e.id, at: e.created_at, in: false, bank: e.source === "bank", title: e.note, sub: `${e.category}${e.recipient ? " · " + e.recipient : ""}${e.source === "bank" ? " · bank orqali" + (e.doc_no ? " №" + e.doc_no : "") : ""}`, amount: e.amount, receipt: e.receipt })),
+        ...L.payments.map((p) => ({ k: "payments", id: p.id, at: p.paid_at, in: true, title: `${p.student_name} · ${fmtMonth(p.month)}`, sub: `O‘quvchi to‘lovi · ${p.method || ""}${p.section ? " · " + SECTION_L[p.section] : ""}${myScope() === null && p.branch_name ? " · " + p.branch_name : ""}${p.note ? " · " + p.note : ""}`, amount: p.amount, receipt: p.receipt })),
+        ...L.salaries.map((x) => ({ k: "salaries", id: x.id, at: x.paid_at, in: false, title: `${x.teacher_name} · ${fmtMonth(x.month)}`, sub: `O‘qituvchi oyligi${x.section ? " · " + SECTION_L[x.section] : ""}${myScope() === null ? " · " + (x.branch_name || "markaziy") : ""}`, amount: x.amount, receipt: x.receipt })),
+        ...L.expenses.map((e) => ({ k: "expenses", id: e.id, at: e.created_at, in: false, bank: e.source === "bank", title: e.note, sub: `${e.category}${e.section ? " · " + SECTION_L[e.section] : " · umumiy"}${myScope() === null ? " · " + (e.branch_name || "markaziy") : ""}${e.recipient ? " · " + e.recipient : ""}${e.source === "bank" ? " · bank orqali" + (e.doc_no ? " №" + e.doc_no : "") : ""}`, amount: e.amount, receipt: e.receipt })),
       ].sort((a, b) => String(b.at).localeCompare(String(a.at)));
       const inc = items.filter((i) => i.in).reduce((a, i) => a + i.amount, 0), out = items.filter((i) => !i.in).reduce((a, i) => a + i.amount, 0);
       list = `<section class="card"><div class="card-head"><select class="input" style="width:auto" data-f="lgMonth" aria-label="Oy">${months.map((m) => `<option value="${m}" ${m === month ? "selected" : ""}>${fmtMonth(m)}</option>`).join("")}</select><span class="small"><b class="pos">+${fmtNum(inc)}</b> · <b class="neg">−${fmtNum(out)}</b></span></div>
@@ -434,15 +454,15 @@ ACTIONS["change:lgMonth"] = (el) => { S.ui.lgMonth = el.value; };
 ACTIONS["set:lgTab"] = () => { S.files["priv:rc"] = []; };
 const monthOpts = () => Array.from({ length: 4 }, (_, i) => monthShift(curMonth(), 1 - i)).map((m) => [m, fmtMonth(m)]);
 function payForm() {
-  const students = data("/students") || [];
+  const students = data("/students?status=active" + fq()) || [];
   return `<form class="stack" style="gap:12px" data-submit="pay">
-    ${field("pyst", "O‘quvchi", { options: students.map((s) => [s.id, `${sName(s)} · ${s.class_name || ""} · ${fmtNum(s.monthly_fee)}`]) })}
+    ${field("pyst", "O‘quvchi / bola", { options: students.map((s) => [s.id, `${sName(s)} · ${s.class_name || ""}${myScope() === null ? " · " + branchName(s.branch_id) : ""} · ${fmtNum(s.monthly_fee)}`]) })}
     <div class="row wrap" style="align-items:flex-start">${field("pymonth", "Qaysi oy uchun", { options: monthOpts(), blank: false, def: curMonth() })}${field("pyamt", "Summa (so‘m)", { mode: "numeric", def: String(students.find((s) => String(s.id) === fv("pyst"))?.monthly_fee || "") })}${field("pymethod", "Usul", { options: ["Naqd", "Click", "Payme", "Uzum", "Bank o‘tkazmasi"].map((x) => [x, x]), blank: false })}</div>
     ${field("pynote", "Izoh (ixtiyoriy)")}${fileBox("priv:rc", { label: "Chek biriktirish", multiple: false, hint: "Rasm yoki PDF, ixtiyoriy" })}
     <button type="submit" class="btn" style="align-self:flex-start" ${busy("pay") ? "disabled" : ""}>To‘lovni kiritish</button></form>`;
 }
 SUBMITS.pay = async () => {
-  const st = (data("/students") || []).find((s) => String(s.id) === fv("pyst"));
+  const st = (data("/students?status=active" + fq()) || []).find((s) => String(s.id) === fv("pyst"));
   await run("pay", () => post("/payments", { student_id: fv("pyst"), month: fv("pymonth", curMonth()), amount: fv("pyamt") || st?.monthly_fee, method: fv("pymethod", "Naqd"), note: fv("pynote"), receipt: (S.files["priv:rc"] || [])[0] || null }), { ok: "To‘lov kiritildi", invalidate: ["/finance", "/dashboard", "/reports", "/students/"] });
   S.f.pyamt = S.f.pynote = ""; S.files["priv:rc"] = []; render();
 };
@@ -451,24 +471,26 @@ function salaryForm() {
   const t = teachers.find((x) => String(x.id) === fv("sltid"));
   return `<form class="stack" style="gap:12px" data-submit="salary">
     <div class="row wrap" style="align-items:flex-start">${field("sltid", "O‘qituvchi", { options: teachers.map((x) => [x.id, x.name]) })}${field("slmonth", "Qaysi oy uchun", { options: monthOpts(), blank: false, def: monthShift(curMonth(), -1) })}${field("slamt", "Summa (so‘m)", { mode: "numeric", def: t?.profile?.salary ? String(t.profile.salary) : "" })}</div>
+    <div class="row wrap" style="align-items:flex-start">${placeFields("sl")}</div>
     ${field("slnote", "Izoh (ixtiyoriy)", { ph: "Masalan, avans yoki mukofot" })}${fileBox("priv:rc", { label: "Chek / vedomost biriktirish", multiple: false, hint: "Ixtiyoriy" })}
     <button type="submit" class="btn" style="align-self:flex-start" ${busy("sal") ? "disabled" : ""}>Oylikni kiritish</button></form>`;
 }
 SUBMITS.salary = async () => {
   const t = (data("/teachers") || []).find((x) => String(x.id) === fv("sltid"));
-  await run("sal", () => post("/salaries", { teacher_id: fv("sltid"), month: fv("slmonth", monthShift(curMonth(), -1)), amount: fv("slamt") || t?.profile?.salary, note: fv("slnote"), receipt: (S.files["priv:rc"] || [])[0] || null }), { ok: "Oylik kiritildi", invalidate: ["/finance", "/dashboard", "/reports", "/teachers/"] });
+  await run("sal", () => post("/salaries", { teacher_id: fv("sltid"), month: fv("slmonth", monthShift(curMonth(), -1)), amount: fv("slamt") || t?.profile?.salary, note: fv("slnote"), ...placeBody("sl"), receipt: (S.files["priv:rc"] || [])[0] || null }), { ok: "Oylik kiritildi", invalidate: ["/finance", "/dashboard", "/reports", "/teachers/"] });
   S.f.slamt = S.f.slnote = ""; S.files["priv:rc"] = []; render();
 };
 function expenseForm() {
   const cats = settings().expenseCategories || [];
   return `<form class="stack" style="gap:12px" data-submit="expense">
     <div class="row wrap" style="align-items:flex-start">${field("excat", "Xarajat turi", { options: cats.map((c) => [c, c]), blank: false, def: cats[0] })}${field("exmonth", "Qaysi oy xarajati", { options: monthOpts(), blank: false, def: curMonth() })}${field("examt", "Summa (so‘m)", { mode: "numeric" })}</div>
+    <div class="row wrap" style="align-items:flex-start">${placeFields("ex")}</div>
     ${field("exnote", "Tavsif — nima uchun sarflandi", { area: true, required: true, ph: "Masalan, 5-A sinf uchun proyektor va kabel" })}${field("exrec", "Kimga / qayerga to‘landi (ixtiyoriy)")}
     ${fileBox("priv:rc", { label: "Chek biriktirish", multiple: false, hint: "Rasm yoki PDF, ixtiyoriy" })}
     <button type="submit" class="btn" style="align-self:flex-start" ${busy("exp") ? "disabled" : ""}>Xarajatni kiritish</button></form>`;
 }
 SUBMITS.expense = async () => {
-  await run("exp", () => post("/expenses", { category: fv("excat", (settings().expenseCategories || [])[0]), month: fv("exmonth", curMonth()), amount: fv("examt"), note: fv("exnote"), recipient: fv("exrec"), source: "cash", receipt: (S.files["priv:rc"] || [])[0] || null }), { ok: "Xarajat kiritildi", invalidate: ["/finance", "/dashboard", "/reports"] });
+  await run("exp", () => post("/expenses", { category: fv("excat", (settings().expenseCategories || [])[0]), month: fv("exmonth", curMonth()), amount: fv("examt"), note: fv("exnote"), recipient: fv("exrec"), source: "cash", ...placeBody("ex"), receipt: (S.files["priv:rc"] || [])[0] || null }), { ok: "Xarajat kiritildi", invalidate: ["/finance", "/dashboard", "/reports"] });
   S.f.examt = S.f.exnote = S.f.exrec = ""; S.files["priv:rc"] = []; render();
 };
 function bankForm() {
@@ -484,6 +506,7 @@ function bankForm() {
       <div class="field"><label for="bpurpose">To‘lov maqsadi — nima uchun${tag("purpose")}</label><textarea class="input" id="bpurpose" data-f="bpurpose" rows="2">${esc(fv("bpurpose"))}</textarea></div>
       <div class="field"><label for="brec">Oluvchi${tag("recipient")}</label><input class="input" id="brec" data-f="brec" value="${esc(fv("brec"))}"></div>
       <div class="row wrap" style="align-items:flex-start">${field("bcat", "Xarajat turi", { options: cats.map((c) => [c, c]), blank: false })}${field("bmonth", "Qaysi oy xarajati", { options: monthOpts(), blank: false, def: curMonth() })}</div>
+      <div class="row wrap" style="align-items:flex-start">${placeFields("bk")}</div>
       <div class="row wrap" style="gap:8px"><button type="submit" class="btn" ${busy("bank") ? "disabled" : ""}>${ic("check", 18)} Chiqimga qo‘shish</button><button type="button" class="btn ghost" data-a="bank-cancel">Bekor qilish</button></div></form>`}`;
 }
 ACTIONS["bank-manual"] = () => { S.ui.bank = { status: "ready", how: "manual", auto: {} }; fill({ bamt: "", bpurpose: "", brec: "", bno: "", bdate: today() }); render(); };
@@ -511,7 +534,7 @@ function guessCategory(text) {
 }
 SUBMITS["bank-save"] = async () => {
   const bk = S.ui.bank || {};
-  await run("bank", () => post("/expenses", { amount: fv("bamt"), note: fv("bpurpose"), recipient: fv("brec"), doc_no: fv("bno"), doc_date: fv("bdate"), category: fv("bcat", (settings().expenseCategories || [])[0]), month: fv("bmonth", curMonth()), source: "bank", receipt: bk.file || null }), { ok: "Bank chiqimi xarajatlarga qo‘shildi", invalidate: ["/finance", "/dashboard", "/reports"] });
+  await run("bank", () => post("/expenses", { amount: fv("bamt"), note: fv("bpurpose"), recipient: fv("brec"), doc_no: fv("bno"), doc_date: fv("bdate"), category: fv("bcat", (settings().expenseCategories || [])[0]), month: fv("bmonth", curMonth()), source: "bank", receipt: bk.file || null, ...placeBody("bk") }), { ok: "Bank chiqimi xarajatlarga qo‘shildi", invalidate: ["/finance", "/dashboard", "/reports"] });
   S.ui.bank = null; render();
 };
 ACTIONS["add-receipt"] = async (el) => {
@@ -564,11 +587,11 @@ function dchg(a, b, dir = 1, money = true, compact = false) {
 }
 VIEWS["admin:reports"] = {
   title: "Hisobotlar", roles: FINANCE,
-  actions: () => `<div class="row wrap" style="gap:8px">${pdfBtn(`/pdf/report?month=${S.ui.rpA2 || monthShift(curMonth(), -1)}`, `hisobot_${S.ui.rpA2 || monthShift(curMonth(), -1)}.pdf`, "Oylik PDF")}${pdfBtn(`/pdf/report?year=${today().slice(0, 4)}`, `yillik_${today().slice(0, 4)}.pdf`, "Yillik PDF")}</div>`,
+  actions: () => `<div class="row wrap" style="gap:8px">${pdfBtn(`/pdf/report?month=${S.ui.rpA2 || monthShift(curMonth(), -1)}${fq()}`, `hisobot_${S.ui.rpA2 || monthShift(curMonth(), -1)}.pdf`, "Oylik PDF")}${pdfBtn(`/pdf/report?year=${today().slice(0, 4)}${fq()}`, `yillik_${today().slice(0, 4)}.pdf`, "Yillik PDF")}</div>`,
   render() {
     const n = Number(S.ui.rpN || 6);
-    const R = data("/reports/months");
-    if (R === undefined) return pending("/reports/months");
+    const R = data("/reports/months" + fq("?"));
+    if (R === undefined) return scopeBar() + pending("/reports/months" + fq("?"));
     const all = R.months, done = all.slice(0, -1), sel = all.slice(-n);
     const A = done.some((m) => m.month === S.ui.rpA) ? S.ui.rpA : done[done.length - 2]?.month, Bm = done.some((m) => m.month === S.ui.rpB) ? S.ui.rpB : done[done.length - 1]?.month;
     S.ui.rpA2 = Bm;
@@ -576,7 +599,7 @@ VIEWS["admin:reports"] = {
     const opt = (v) => done.slice().reverse().map((m) => `<option value="${m.month}" ${m.month === v ? "selected" : ""}>${fmtMonth(m.month)}</option>`).join("");
     const rows = a && b ? [["O‘quvchilar", (m) => m.students, 1, false], ["Kirim", (m) => m.income, 1, true, "total"], ["O‘qituvchilar oyligi", (m) => m.salaries, -1, true], ...R.categories.map((c) => [c, (m) => m.byCat[c] || 0, -1, true, "sub"]), ["Jami chiqim", (m) => m.out, -1, true, "total"], ["Sof foyda", (m) => m.profit, 1, true, "total"]] : [];
     const word = (x, y) => (x === y ? "o‘zgarmadi" : `${x ? Math.abs(Math.round(((y - x) / Math.abs(x)) * 100)) + "% " : ""}${y > x ? "oshdi" : "kamaydi"}`);
-    return `<section class="card"><div class="card-head" style="flex-wrap:wrap"><h2>Kirim, chiqim va foyda</h2>${seg("rpN", String(n), [["3", "3 oy"], ["6", "6 oy"], ["12", "1 yil"]])}</div>${chartMoney(sel)}</section>
+    return `${scopeBar()}<section class="card"><div class="card-head" style="flex-wrap:wrap"><h2>Kirim, chiqim va foyda${S.ui.fb && myScope() === null ? " · " + esc(branchName(S.ui.fb)) : ""}${S.ui.fs ? " · " + SECTION_L[S.ui.fs] : ""}</h2>${seg("rpN", String(n), [["3", "3 oy"], ["6", "6 oy"], ["12", "1 yil"]])}</div>${chartMoney(sel)}</section>
       ${a && b ? `<section class="card"><div class="card-head" style="flex-wrap:wrap;gap:8px"><h2>Ikki oyni solishtirish</h2><div class="row" style="gap:6px"><select class="input" style="width:auto" data-f="rpA">${opt(A)}</select><span class="muted">→</span><select class="input" style="width:auto" data-f="rpB">${opt(Bm)}</select></div></div>
         <div class="doc-row" style="background:var(--accent-soft)">${ic("chart", 18)}<span class="small"><b>${fmtMonth(Bm)}</b> — <b>${fmtMonth(A)}</b>ga nisbatan: kirim ${word(a.income, b.income)}, chiqim ${word(a.out, b.out)}, sof foyda ${b.profit === a.profit ? "o‘zgarmadi" : `${fmtMln(Math.abs(b.profit - a.profit))} so‘mga ${b.profit > a.profit ? "oshdi" : "kamaydi"}`}.</span></div>
         <div class="table-wrap"><table class="tbl"><thead><tr><th></th><th>${fmtMonth(A)}</th><th>${fmtMonth(Bm)}</th><th>O‘zgarish</th></tr></thead><tbody>${rows.map(([l, f, dir, money, cls]) => `<tr class="${cls || ""}"><td>${esc(l)}</td><td>${money ? fmtNum(f(a)) : f(a)}</td><td>${money ? fmtNum(f(b)) : f(b)}</td><td>${dchg(f(a), f(b), dir, money)}</td></tr>`).join("")}</tbody></table></div></section>` : ""}
@@ -600,8 +623,8 @@ VIEWS["admin:settings"] = {
       <section class="card"><h2>O‘qituvchilar reytingi</h2>
         <form class="stack" style="gap:12px" data-submit="set-rating">${field("ssw", "Ota-onalar bahosining ulushi (%)", { mode: "numeric", hint: "Qolgan qismi — ochiq darslar soni" })}${field("sstarget", "Oyiga nechta ochiq dars to‘liq ball beradi", { mode: "numeric" })}<button type="submit" class="btn" ${busy("sr") ? "disabled" : ""}>Saqlash</button></form></section>
       ${role() === "owner" ? `<section class="card"><h2>Xarajat turlari</h2><form class="stack" style="gap:12px" data-submit="set-cats">${field("sscats", "Har bir qatorda bitta tur", { area: true, rows: 6 })}<button type="submit" class="btn" ${busy("sc2") ? "disabled" : ""}>Saqlash</button></form></section>
-      <section class="card" style="border-color:var(--gold)"><h2>Demo ma’lumotlar</h2><span class="small muted">Sinab ko‘rish uchun 4 sinf, 8 o‘qituvchi, 48 o‘quvchi, 3 haftalik darslar va to‘lovlar yuklanadi. Barcha demo hisoblar paroli: <b>demo1234</b> (o‘qituvchi: +998 90 700 10 01 — oyning eng yaxshi o‘qituvchisi; ota-ona: +998 91 500 00 00 — farzandi sinfda 1-o‘rinda; menejer: +998 90 700 00 01; buxgalter: +998 90 700 00 02). Haqiqiy ishga tushirishdan oldin o‘chirib tashlang.</span>
-        <div class="row wrap" style="gap:8px"><button type="button" class="btn" data-a="demo" data-v="load" ${busy("demo") ? "disabled" : ""}>Demo ma’lumotlarni yuklash</button><button type="button" class="btn sec" style="color:var(--bad)" data-a="demo" data-v="clear" ${busy("demo") ? "disabled" : ""}>Demo ma’lumotlarni o‘chirish</button></div></section>` : ""}
+      ${S.me.demo ? `<section class="card" style="border-color:var(--gold)"><h2>Demo ma’lumotlar</h2><span class="small muted">Sinab ko‘rish uchun 4 sinf, 8 o‘qituvchi, 48 o‘quvchi, 3 haftalik darslar va to‘lovlar yuklanadi. Barcha demo hisoblar paroli: <b>demo1234</b> (o‘qituvchi: +998 90 700 10 01 — oyning eng yaxshi o‘qituvchisi; ota-ona: +998 91 500 00 00 — farzandi sinfda 1-o‘rinda; menejer: +998 90 700 00 01; buxgalter: +998 90 700 00 02). Haqiqiy ishga tushirishdan oldin o‘chirib tashlang.</span>
+        <div class="row wrap" style="gap:8px"><button type="button" class="btn" data-a="demo" data-v="load" ${busy("demo") ? "disabled" : ""}>Demo ma’lumotlarni yuklash</button><button type="button" class="btn sec" style="color:var(--bad)" data-a="demo" data-v="clear" ${busy("demo") ? "disabled" : ""}>Demo ma’lumotlarni o‘chirish</button></div></section>` : `<section class="card"><h2>Demo ma’lumotlar</h2><span class="small muted">Production rejimida demo yuklash o‘chirilgan. Avval yuklangan demo bo‘lsa, o‘chirib tashlang: demo hisoblar bilan kirish allaqachon bloklangan.</span><button type="button" class="btn sec" style="color:var(--bad);align-self:flex-start" data-a="demo" data-v="clear">Demo ma’lumotlarni o‘chirish</button></section>`}` : ""}
     </div>`;
   },
 };

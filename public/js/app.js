@@ -1,9 +1,11 @@
 // Entry point: event wiring, uploads, polling, boot.
-import { S, render, go, api, post, patch, ACTIONS, SUBMITS, setToken, loadMe, logout, toast, closeModal, openModal, retry, uploadFile, download, invalidate, run, parseHash, role, ADMINS, pickFiles, pickAndUpload, fmtLocal } from "./core.js";
+import { S, render, go, api, post, patch, ACTIONS, SUBMITS, setToken, loadMe, logout, toast, closeModal, openModal, retry, uploadFile, download, invalidate, run, parseHash, role, ADMINS, pickFiles, pickAndUpload, fmtLocal, native } from "./core.js";
+import "./native.js";
 import "./common.js";
 import "./admin.js";
 import "./teacher.js";
 import "./parent.js";
+import "./branches.js";
 
 /* ---------- generic actions ---------- */
 Object.assign(ACTIONS, {
@@ -20,6 +22,7 @@ Object.assign(ACTIONS, {
   "file-rm": (el) => { const l = S.files[el.dataset.k] || []; l.splice(Number(el.dataset.v), 1); render(); },
   "file-pick": (el) => pickAndUpload(el.dataset.k, { multiple: el.dataset.m === "1", accept: el.dataset.accept }),
   "file-open": async (el) => {
+    if (native.save) { try { const blob = await api("/files/" + el.dataset.v); await native.save(blob, el.dataset.n || "hujjat"); } catch (e) { toast(e.message); } return; }
     const w = window.open("", "_blank");
     try { const blob = await api("/files/" + el.dataset.v); const url = URL.createObjectURL(blob); if (w) w.location = url; else location.href = url; }
     catch (e) { if (w) w.close(); toast(e.message); }
@@ -69,7 +72,10 @@ addEventListener("scroll", () => document.body.classList.toggle("scrolled", scro
 document.addEventListener("change", (e) => {
   const el = e.target; if (!el.dataset?.f) return;
   S.f[el.dataset.f] = el.type === "checkbox" ? (el.checked ? "1" : "") : el.value;
-  if (el.tagName === "SELECT" || el.type === "checkbox" || el.type === "date" || el.type === "month") { const fn = ACTIONS["change:" + el.dataset.f]; if (fn) fn(el); render(); }
+  // date/time inputs are typed segment by segment (day → month → year): re-rendering here would reset them, so only selects and checkboxes re-render
+  const fn = ACTIONS["change:" + el.dataset.f];
+  if (el.tagName === "SELECT" || el.type === "checkbox") { if (fn) fn(el); render(); }
+  else if (fn) fn(el);
 });
 document.addEventListener("keydown", (e) => { if (e.key === "Escape" && (S.modal || S.more)) { S.modal = null; S.more = false; render(); } });
 window.addEventListener("hashchange", () => { S.more = false; S.modal = null; render(); window.scrollTo(0, 0); });

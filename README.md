@@ -25,9 +25,9 @@ git add .
 git commit -m "Steam Plaza 2.0"
 git branch -M main
 git remote add origin https://github.com/reyes-school/steam-plaza-app.git
-git push -u origin main --force
+git push -u origin main
 ```
-`--force` eski kodni yangisi bilan almashtiradi. Login so‘ralsa: Username `reyes-school`, Password — token.
+Agar repoda eski kod bo‘lsa, avval `git pull` qiling yoki yangi branch'ga push qilib, Pull Request oching (`--force` ishlatmang — tarix yo‘qoladi). Login so‘ralsa: GitHub foydalanuvchi nomi va Personal Access Token.
 
 ### 1.2. Vercel'da loyiha
 1. vercel.com → **Add New → Project** → `steam-plaza-app` → **Import**.
@@ -106,24 +106,20 @@ ExecStart=/usr/bin/node server.js
 Restart=always
 User=$USER
 Environment=NODE_ENV=production
+Environment=HOST=127.0.0.1
 [Install]
 WantedBy=multi-user.target
 EOF
 sudo systemctl enable --now steamplaza
 
-# 6) Nginx + HTTPS (domen DNS'i serverga yo‘naltirilgan bo‘lsin)
-sudo tee /etc/nginx/sites-available/steamplaza >/dev/null <<'EOF'
-server {
-  server_name app.steamplaza.uz;
-  client_max_body_size 30m;
-  location / { proxy_pass http://127.0.0.1:3000; proxy_set_header Host $host; proxy_set_header X-Forwarded-For $remote_addr; }
-}
-EOF
+# 6) Nginx + HTTPS + flood (DDoS) himoyasi (domen DNS'i serverga yo‘naltirilgan bo‘lsin)
+sudo cp deploy/steamplaza-proxy.conf /etc/nginx/snippets/steamplaza-proxy.conf
+sudo cp deploy/nginx-steamplaza.conf /etc/nginx/sites-available/steamplaza   # ichida domenni almashtiring
 sudo ln -s /etc/nginx/sites-available/steamplaza /etc/nginx/sites-enabled/ && sudo nginx -t && sudo systemctl reload nginx
 sudo apt install -y certbot python3-certbot-nginx && sudo certbot --nginx -d app.steamplaza.uz
 
 # 7) Har kuni zaxira nusxa va oylik tozalash (crontab -e)
-# 0 3 * * * pg_dump steamplaza | gzip > /var/backups/steamplaza-$(date +\%F).sql.gz && find /var/backups -name 'steamplaza-*' -mtime +30 -delete
+# 0 3 * * * /opt/steamplaza/deploy/backup.sh     # baza + yuklangan fayllar, 30 kun saqlanadi; nusxani boshqa serverga ham ko‘chiring
 # 0 4 1 * * curl -s -H "Authorization: Bearer CRON_SECRET" http://127.0.0.1:3000/api/cron/cleanup
 ```
 Yangilash: `cd /opt/steamplaza && git pull && npm ci --omit=dev && sudo systemctl restart steamplaza`.
@@ -133,8 +129,9 @@ Yangilash: `cd /opt/steamplaza && git pull && npm ci --omit=dev && sudo systemct
 - Fayllar Vercel'da bazada, o‘z serveringizda diskda (`FILE_STORAGE=disk`) saqlanadi.
 - **2 yillik saqlash:** oyiga bir marta tozalash ishlaydi (`RETENTION_MONTHS=24`) — 24 oydan eski darslar, baholar, davomat va bildirishnomalar o‘chiriladi. O‘quvchilar, o‘qituvchilar, hujjatlar va moliya o‘chirilmaydi.
 
-## Mobil ilova
-Barcha funksiyalar `/api` orqali ishlaydi. iOS va Android ilovasi (React Native/Expo) shu API'ga ulanadi — server qismini qayta yozish shart emas.
+## Mobil ilovalar (iOS va Android)
+`mobile/` papkasida — Capacitor asosida, web bilan bir xil kod va server. Qo‘llanma: `mobile/MOBILE.md`.
+O‘z serveringizga ko‘chganda `mobile/app.config.json` dagi `apiUrl` ni yangi domenga almashtiring.
 
 ## Lokal ishga tushirish
 ```bash
@@ -143,3 +140,47 @@ cp .env.example .env   # DATABASE_URL, SESSION_SECRET, OWNER_PHONE, OWNER_PASSWO
 npm start              # http://localhost:3000
 npm test               # API testlari (bo‘sh baza bilan)
 ```
+
+## Tillar (O‘zbekcha / Русский)
+
+Kirish sahifasining yuqori burchagida va **Profil** sahifasida UZ | RU almashtirgichi bor. Tanlov qurilmada saqlanadi.
+Tarjimalar `public/js/ru.js` lug‘atida (kalit — o‘zbekcha matn, qiymat — ruscha; `{0}` — qiymat o‘rni, `{0|ученик|ученика|учеников}` — ko‘plik shakli).
+Yangi matn qo‘shsangiz, ruscha tarjimasini shu faylga qo‘shing. PDF hisobotlar ham tanlangan tilda yuklanadi.
+
+
+---
+
+## 3-versiya: filiallar, maktab/bog‘cha va xavfsizlik
+
+### Filiallar
+- Baza birinchi ishga tushganda **2 ta filial** yaratiladi (`1-filial`, `2-filial`). Nomini, manzilini **Filiallar** bo‘limida o‘zgartirasiz, kerak bo‘lsa yangisini qo‘shasiz.
+- Har bir filialda ikki bo‘lim bor: **Maktab** va **Bog‘cha**. Sinf (yoki bog‘cha guruhi) qo‘shganda filial va bo‘limni tanlaysiz — o‘quvchi, to‘lov, qarz va hisobotlar shu bo‘yicha avtomatik ajraladi.
+- Eski ma’lumotlar (filialsiz) 1-filialning maktab bo‘limiga o‘tkaziladi.
+- Xarajat va oylikda bo‘limni tanlash mumkin; tanlanmasa — filialning umumiy xarajati. Bosh admin filialsiz (markaziy) xarajat ham kirita oladi.
+
+### Rollar va panellar
+| Rol | Panel |
+|---|---|
+| Bosh admin | **Umumiy hisobot** (butun tashkilot → har bir filial → maktab va bog‘cha), filiallar, foydalanuvchilar, harakatlar jurnali, hamma bo‘limlar. Ro‘yxat va hisobotlarda filial/bo‘lim filtri. |
+| Menejer | O‘quv ishlari. Filial biriktirilsa — faqat o‘sha filial (o‘quvchilar, sinflar, jadval, ota-onalar, kelmaslik xabarlari). Biriktirilmasa — barcha filiallar. |
+| Buxgalter | **Faqat o‘z filiali**: kirim-chiqim, qarzdorlar, hisobotlar, shartnomalar. Boshqa filial ma’lumotini server bermaydi (403). Buxgalter qo‘shishda filial majburiy. |
+| O‘qituvchi | O‘z darslari; bugungi kelmaydigan o‘quvchilar ro‘yxati, dars sahifasida “ota-ona xabar bergan” belgisi. |
+| Ota-ona | Farzandi; **“Farzandim kela olmaydi”** xabari. |
+
+### Kelmaslik xabari
+Ota-ona bosh sahifada yoki **Kela olmaydi** bo‘limida sana(lar), sabab turi va izoh bilan xabar yuboradi. Bildirishnoma darhol boradi: sinf rahbari (tarbiyachi), o‘sha kunlari shu sinfda dars beradigan o‘qituvchilar, filial menejeri va bosh admin. Ma’muriyat “Ko‘rdim” deb belgilaydi.
+
+### O‘rinbosar o‘qituvchi
+O‘qituvchi endi boshqa o‘qituvchining darsini o‘zi boshlay olmaydi. **Sinflar va jadval → O‘rinbosar tayinlash** orqali ma’muriyat tayinlaydi.
+
+### Xavfsizlik o‘zgarishlari
+- Server bitta noto‘g‘ri so‘rov bilan qulamaydi; sekin so‘rovlar (slowloris) uchun timeout'lar; server faqat `127.0.0.1` da tinglaydi (nginx orqali).
+- Rate limit: IP bo‘yicha umumiy va yozish so‘rovlari, login (IP bo‘yicha va telefon bo‘yicha — bazada, 6 urinishdan keyin 15 daqiqa blok), fayl yuklash. nginx'da qo‘shimcha `limit_req`/`limit_conn` (`deploy/nginx-steamplaza.conf`).
+- Parol: kamida 8 belgi, harf va raqam. Parol almashtirilganda, admin yangi parol berganda, hisob bloklanganda yoki filial o‘zgarganda **eski loginlar bekor bo‘ladi**. Profilda “Barcha qurilmalardan chiqish”.
+- Production (`NODE_ENV=production`) da demo yuklash o‘chirilgan va demo hisoblar bilan kirib bo‘lmaydi.
+- Ruxsatlar: ota-ona boshqa filial bolalarining kartasini ko‘rmaydi; o‘qituvchi baholarida ota-ona ismlari faqat admin va o‘qituvchining o‘ziga ko‘rinadi; filial cheklovi barcha endpoint'larda serverda tekshiriladi.
+- Fayllar: mazmuni turiga mos kelishi tekshiriladi (PDF, JPEG, PNG, Office), Office fayllar yuklab olinadi (brauzerda ochilmaydi), fayl javoblarida sandbox CSP.
+- Xavfsizlik sarlavhalari: CSP, HSTS, X-Frame-Options, nosniff, Referrer-Policy, Permissions-Policy (`server.js` va `vercel.json`).
+- **Harakatlar jurnali** (audit log): kirishlar va noto‘g‘ri urinishlar, to‘lov/oylik/xarajat, o‘chirishlar, foydalanuvchi va parol o‘zgarishlari, o‘tgan darslardagi baho o‘zgarishlari — kim, qachon, qaysi IP.
+- Zaxira: `deploy/backup.sh` baza bilan birga yuklangan fayllarni ham saqlaydi.
+- Shaxsiy ma’lumotlar: O‘zbekiston qonunchiligi bo‘yicha fuqarolarning shaxsiy ma’lumotlari O‘zbekistondagi serverda saqlanishi kerak — haqiqiy ishga tushirishni Vercel emas, O‘zbekistondagi VDS (2-bo‘lim) da qiling.

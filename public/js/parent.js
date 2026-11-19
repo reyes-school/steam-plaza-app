@@ -2,11 +2,11 @@
 import {
   S, VIEWS, ACTIONS, MODALS, NAV, render, go, data, pending, openModal, closeModal, modalHead,
   esc, ic, badge, seg, cardHead, empty, bar, starsHtml, rankMark, avgColor, ava, linkTo,
-  fmtDay, fmtWhen, fmtMonth, fmtAvg, fmtPhone, hm, sName, today, addDays, wdOf, WD, settings, periodTimes, tzNow, confetti, celebrateOnce, CUP, greeting, tile, banner, user, curMonth,
+  fmtDay, fmtWhen, fmtMonth, fmtAvg, fmtPhone, hm, sName, today, addDays, wdOf, WD, settings, periodTimes, tzNow, confetti, celebrateOnce, CUP, greeting, tile, banner, user, curMonth, mondayOf, LANG, WDS,
 } from "./core.js";
 import { currentKid, kidSwitcher, statsPanel, homeworkPanel, postCard } from "./common.js";
 
-NAV.parent = [["home", "Bosh sahifa", "home"], ["homework", "Uy vazifasi", "book"], ["stats", "Statistika", "chart"], ["ratings", "Reyting", "trophy"], ["schedule", "Jadval", "calendar"], ["teachers", "O‘qituvchilar", "user"], ["news", "Yangiliklar", "news"], ["child", "Farzandim", "user"]];
+NAV.parent = [["home", "Bosh sahifa", "home"], ["homework", "Uy vazifasi", "book"], ["stats", "Statistika", "chart"], ["ratings", "Reyting", "trophy"], ["schedule", "Jadval", "calendar"], ["teachers", "O‘qituvchilar", "user"], ["absences", "Kela olmaydi", "bell"], ["news", "Yangiliklar", "news"], ["child", "Farzandim", "user"]];
 
 const MEAL_L = { breakfast: "Nonushta", lunch: "Tushlik", snack: "Tamaddi" };
 const store = { get: (k) => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch {} } };
@@ -55,13 +55,34 @@ function todayTimeline(kid) {
     return `<div class="tl-row ${x.status === "ended" ? "done" : ""} ${isNow ? "now" : ""}"><span class="tl-dot"></span><span class="tl-time">${t ? hm(t.start) : ""}</span><div class="col grow"><b>${esc(x.subject)}</b><span class="xs muted">${esc(x.teacher_name)}${x.topic ? " · " + esc(x.topic) : ""}${isNow ? ` · ${t.end - now} daq qoldi` : ""}</span></div>${x.status === "ended" ? `<span class="check-ic ok">${ic("check", 15)}</span>` : isNow ? `<span class="check-ic wait" style="border-color:var(--gold);color:var(--gold)">${ic("play", 12)}</span>` : `<span class="check-ic wait">${ic(done ? "close" : "play", 12)}</span>`}</div>`;
   }).join("")}</div></section>`;
 }
+
+const MEAL_IC = { breakfast: "sun", lunch: "food", snack: "star" };
+const MEAL_T = { breakfast: "mint", lunch: "yellow", snack: "lav" };
+function mealTimes() {
+  const b = settings().bell, t = periodTimes(b);
+  if (!t.length) return {};
+  const la = t.find((x) => x.period === Number(b.lunchAfter)) || t[Math.min(3, t.length - 1)];
+  const sn = t[Math.min(t.length - 1, Number(b.lunchAfter) + 1)] || t[t.length - 1];
+  return { breakfast: `${hm(t[0].start - 25)}`, lunch: `${hm(la.end)} – ${hm(la.end + (Number(b.lunch) || 40))}`, snack: hm(sn.end) };
+}
+function menuCard() {
+  const t0 = today(), mon = wdOf(t0) === 0 ? addDays(t0, 1) : mondayOf(t0), days = [0, 1, 2, 3, 4, 5].map((i) => addDays(mon, i));
+  const sel = days.includes(S.ui.menuDay) ? S.ui.menuDay : wdOf(t0) === 0 ? mon : t0;
+  const tm = addDays(t0, 1);
+  const menu = data(`/menu?from=${mon}&to=${days[5]}`);
+  const order = { breakfast: 0, lunch: 1, snack: 2 }, times = mealTimes();
+  const list = (menu || []).filter((m) => m.date === sel).sort((a, b) => order[a.meal] - order[b.meal]);
+  const chips = `<div class="day-chips">${days.map((d) => `<button type="button" class="day-chip ${d === sel ? "on" : ""} ${d === t0 ? "today" : ""} ${(menu || []).some((m) => m.date === d) ? "has" : ""}" data-a="menu-day" data-v="${d}"><span class="xs">${LANG === "ru" ? WDS[wdOf(d)] : WD[wdOf(d)].slice(0, 3)}</span><b>${Number(d.slice(8))}</b></button>`).join("")}</div>`;
+  const body = menu === undefined ? "" : list.length ? `<div class="meals">${list.map((m) => `<div class="meal-row t-${MEAL_T[m.meal]}"><span class="meal-ic">${ic(MEAL_IC[m.meal], 20)}</span><div class="col grow"><div class="row between"><span class="xs b meal-l">${MEAL_L[m.meal]}</span>${times[m.meal] ? `<span class="xs muted num">${times[m.meal]}</span>` : ""}</div><b>${esc(m.dish)}</b>${m.items ? `<span class="small muted">${esc(m.items)}</span>` : ""}</div></div>`).join("")}</div>` : empty("Bu kun uchun taomnoma kiritilmagan");
+  return `<section class="card menu-card">${cardHead(sel === t0 ? "Bugungi taomnoma" : sel === tm ? "Ertangi taomnoma" : `Taomnoma · ${fmtDay(sel)}`)}${chips}${body}</section>`;
+}
+ACTIONS["menu-day"] = (el) => { S.ui.menuDay = el.dataset.v; render(); };
 VIEWS["parent:home"] = {
   title: "Bosh sahifa", noHead: true,
   render() {
     const kid = currentKid();
     if (!kid) return `${greeting(user().name)}<section class="card">${empty("Hisobingizga hali farzand biriktirilmagan. Maktab administratoriga murojaat qiling.")}</section>`;
     const cls = S.me.classes.find((c) => c.id === kid.class_id);
-    const menu = data(`/menu?from=${today()}&to=${today()}`);
     const hwPath = `/students/${kid.id}/homework?from=${addDays(today(), -6)}&to=${today()}`, hw = data(hwPath);
     const lastHw = hw?.find((l) => l.homework);
     const s = data("/students/" + kid.id);
@@ -79,10 +100,14 @@ VIEWS["parent:home"] = {
       </div>` : "";
     const leader = cls?.leader_name ? `<section class="card" style="gap:8px"><span class="xs muted b">Sinf rahbari</span><div class="row">${ava({ id: cls.leader_id }, 46, "t")}<div class="col grow"><b>${esc(cls.leader_name)}</b><span class="small muted">${fmtPhone(cls.leader_phone)}</span></div><a class="call-btn" href="tel:${esc(cls.leader_phone || "")}" aria-label="Qo‘ng‘iroq qilish">${ic("phone", 18)}</a></div></section>` : "";
     const rankCta = R?.week?.rank ? `<button type="button" class="rank-cta" style="border:0;text-align:left" data-a="go" data-r="ratings"><span class="small" style="opacity:.9">Sinf reytingida (hafta)</span><b style="font-size:24px">${R.week.rank}-o‘rin</b><span class="xs" style="opacity:.85">Batafsil →</span><svg class="star" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="${ICON_STAR}"/></svg></button>` : "";
+    const absToday = (data("/absences") || []).find((a) => a.student_id === kid.id && a.date_from <= today() && a.date_to >= today());
     return `${greeting(user().name)}
       ${kidSwitcher()}
+      ${absToday ? `<div class="doc-row" style="background:var(--info-soft);color:var(--info)">${ic("check", 18)}<span class="small grow">Bugun ${esc(kid.first_name)} kelmasligi haqida xabar berilgan. O‘qituvchilar xabardor.</span></div>`
+        : `<button type="button" class="doc-row" style="border:0;background:var(--surface-2);text-align:left" data-a="modal" data-m="absence-new" data-v="${kid.id}">${ic("bell", 18)}<span class="grow small"><b>${esc(kid.first_name)} bugun kela olmaydimi?</b> O‘qituvchi va ma’muriyatga bir bosishda xabar bering</span>${ic("chevron", 16)}</button>`}
       <button type="button" class="pcard" data-a="go" data-r="student-${kid.id}"><span class="ava-wrap">${ava(kid, 58)}</span><div class="col grow"><b style="font-size:18px">${esc(sName(kid))}</b><span class="small muted">${esc(cls?.name || "")} sinf</span></div>${ic("chevron", 18)}</button>
       ${tiles}
+      ${menuCard()}
       <div class="grid" style="--min:330px">
         <div class="stack" style="gap:14px">
           ${todayTimeline(kid)}
@@ -93,7 +118,6 @@ VIEWS["parent:home"] = {
           ${rankCard(kid)}
           ${rankCta}
           ${banner({ title: "Bilim bilan parvoz qiling!", route: "news" })}
-          <section class="card">${cardHead("Bugungi taomnoma")}${menu === undefined ? "" : menu.length ? `<div class="row wrap" style="gap:8px">${menu.map((m) => `<div class="meal" style="background:var(--surface-2)"><span class="xs muted">${MEAL_L[m.meal]}</span><b class="small">${esc(m.dish)}</b>${m.items ? `<span class="xs muted">${esc(m.items)}</span>` : ""}</div>`).join("")}</div>` : empty("Taomnoma kiritilmagan")}</section>
         </div>
       </div>
       ${s?.feedback?.length ? `<section class="card">${cardHead("O‘qituvchilar fikri")}<div class="list">${s.feedback.slice(0, 3).map((f) => `<div class="col"><div class="row between"><b class="small">${esc(f.teacher_name)}</b><span class="xs muted">${fmtWhen(f.created_at)}</span></div><span>${esc(f.text)}</span></div>`).join("")}</div></section>` : ""}

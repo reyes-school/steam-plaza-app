@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Steam Plaza</string>
+    <string name="title_activity_main">Steam Plaza</string>
+    <string name="package_name">uz.steamplaza.app</string>
+    <string name="custom_url_scheme">uz.steamplaza.app</string>
+</resources>

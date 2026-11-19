@@ -6,7 +6,7 @@ import {
 } from "./core.js";
 import { reviewItem, postCard } from "./common.js";
 
-NAV.teacher = [["today", "Bugun", "home"], ["schedule", "Jadval", "calendar"], ["classes", "Sinflarim", "users"], ["ratings", "Reyting", "trophy"], ["openlessons", "Ochiq darslar", "megaphone"], ["reviews", "Fikrlar va baholar", "star"], ["news", "Yangiliklar", "news"]];
+NAV.teacher = [["today", "Bugun", "home"], ["schedule", "Jadval", "calendar"], ["classes", "Sinflarim", "users"], ["ratings", "Reyting", "trophy"], ["openlessons", "Ochiq darslar", "megaphone"], ["absences", "Kelmaslik xabarlari", "bell"], ["reviews", "Fikrlar va baholar", "star"], ["news", "Yangiliklar", "news"]];
 
 const slotOf = (p) => periodTimes(settings().bell).find((x) => x.period === p);
 function timing(date, period) {
@@ -34,7 +34,9 @@ VIEWS["teacher:today"] = {
       ${tile({ icon: "check", label: "Yakunlangan", value: String(list.filter((l) => l.status === "ended").length), tone: "mint" })}
       ${tile({ icon: "trophy", label: "Oy reytingi", value: me ? `${me.rank}/${tr.rows.length}` : "—", tone: "lav", route: "ratings" })}
       ${tile({ icon: "star", label: "Ota-onalar bahosi", value: avg ? fmtAvg(avg) : "—", tone: "yellow", route: "reviews" })}</div>`;
-    return greeting(user().name) + tiles + banner + todayBody();
+    const abs = (data("/absences?from=" + d + "&to=" + d) || []);
+    const absCard = abs.length ? `<button type="button" class="doc-row" style="border:0;background:var(--info-soft);color:var(--info);text-align:left" data-a="go" data-r="absences">${ic("bell", 18)}<span class="grow small"><b>Bugun kelmaydi (ota-ona xabar bergan):</b> ${abs.map((a) => esc(`${a.last_name} ${a.first_name} (${a.class_name || ""})`)).join(", ")}</span>${ic("chevron", 16)}</button>` : "";
+    return greeting(user().name) + tiles + absCard + banner + todayBody();
   },
 };
 ACTIONS["t-cele"] = () => { const tr = data("/ratings/teachers?month=" + curMonth()); const me = tr?.rows?.find((x) => x.id === user().id); if (me) { openModal({ type: "teacher-celebrate", extra: JSON.stringify(me) }); confetti(); } };
@@ -108,7 +110,7 @@ VIEWS["teacher:lesson"] = {
     let body = "";
     if (tab === "marks") {
       body = `<div class="row wrap between"><span class="small muted">${graded} ta baho qo‘yildi</span>${editable ? `<button type="button" class="btn sec sm" data-a="all-present" data-v="${L.id}">${ic("check", 15)} Hammasi keldi</button>` : ""}</div>
-        <div class="list">${L.students.map((s) => `<div class="mark-row"><button type="button" class="row grow" style="border:0;background:transparent;text-align:left;padding:0;min-width:160px" data-a="go" data-r="student-${s.id}">${ava(s, 38)}<b class="small">${esc(sName(s))}</b></button>
+        <div class="list">${L.students.map((s) => `<div class="mark-row"><button type="button" class="row grow" style="border:0;background:transparent;text-align:left;padding:0;min-width:160px" data-a="go" data-r="student-${s.id}">${ava(s, 38)}<span class="col" style="gap:0"><b class="small">${esc(sName(s))}</b>${s.excused ? `<span class="xs" style="color:var(--info)" title="${esc(s.excused.reason)}">${ic("bell", 11)} Ota-ona xabar bergan: ${esc(s.excused.reason).slice(0, 40)}</span>` : ""}</span></button>
           <div class="tog" role="group" aria-label="Davomat">${ATT.map(([v, l, c]) => `<button type="button" class="${c}" data-a="mark" data-l="${L.id}" data-s="${s.id}" data-k="attendance" data-v="${v}" aria-pressed="${s.attendance === v}" ${editable ? "" : "disabled"}>${l}</button>`).join("")}</div>
           <div class="tog" role="group" aria-label="Baho">${[2, 3, 4, 5].map((g) => `<button type="button" class="g" data-a="mark" data-l="${L.id}" data-s="${s.id}" data-k="grade" data-v="${g}" aria-pressed="${s.grade === g}" ${editable && s.attendance !== "absent" ? "" : "disabled"}>${g}</button>`).join("")}</div></div>`).join("") || empty("Sinfda o‘quvchilar yo‘q")}</div>`;
     } else if (tab === "check") {

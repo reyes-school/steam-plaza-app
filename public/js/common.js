@@ -3,16 +3,20 @@ import {
   S, VIEWS, ACTIONS, SUBMITS, MODALS, render, go, api, post, patch, del, put, run, busy, data, pending, invalidate, toast, openModal, closeModal, modalHead,
   esc, ic, badge, seg, pills, cardHead, empty, bar, field, fv, fill, starsHtml, rankMark, avgColor, ava, avaEdit, fileBox, fileLinks, fileUrl, isImg, pdfBtn,
   fmtDay, fmtDate, fmtTime, fmtWhen, fmtMonth, fmtNum, fmtSum, fmtAvg, fmtPhone, fmtSize, hm, sName, initials, today, curMonth, addDays, mondayOf, monthShift, monthEnd, wdOf,
-  WD, WDS, MONTHS, MONTHS_S, ROLE_L, ADMINS, STAFF, FINANCE, user, role, group, settings, periodTimes, setToken, loadMe, linkTo, tzNow, fmtLocal, FLAG, ring, subjTone, TONE, PLANE, greeting, tile, banner, sparkline,
+  WD, WDS, MONTHS, MONTHS_S, ROLE_L, ADMINS, STAFF, FINANCE, user, role, group, settings, periodTimes, setToken, loadMe, logout, linkTo, tzNow, fmtLocal, FLAG, ring, subjTone, TONE, PLANE, greeting, tile, banner, sparkline,
 } from "./core.js";
+import { LANG, LANGS, setLang } from "./i18n.js";
 
 /* ================= login ================= */
+/** UZ | RU switch; the page reloads in the chosen language. */
+export const langSwitch = (cls = "") => `<div class="lang-seg ${cls}" role="group" aria-label="Til · Язык" data-notr>${LANGS.map(([k, l]) => `<button type="button" data-a="lang" data-v="${k}" aria-pressed="${LANG === k}"><b>${k.toUpperCase()}</b><span>${l}</span></button>`).join("")}</div>`;
+ACTIONS.lang = (el) => { if (el.dataset.v === LANG) return; setLang(el.dataset.v); document.documentElement.classList.add("lang-switching"); location.reload(); };
 VIEWS["*:login"] = {
   title: "Kirish",
   render() {
     const sch = settings().school || {};
     return `<div class="login ios">
-      <div class="login-top"><div class="app-icon"><img src="/logo-mark.png" alt=""></div><h1>${esc(sch.name || "Steam Plaza")}</h1><p>Innovatsion ta’lim — yorqin kelajak uchun</p>${PLANE}</div>
+      <div class="login-top">${langSwitch("on-dark")}<div class="app-icon"><img src="/logo-mark.png" alt=""></div><h1>${esc(sch.name || "Steam Plaza")}</h1><p>Innovatsion ta’lim — yorqin kelajak uchun</p>${PLANE}</div>
       <form class="login-sheet" data-submit="login">
         <h2>Kirish</h2>
         <div class="group">
@@ -45,23 +49,28 @@ VIEWS["*:profile"] = {
         <div class="row">${u.role === "owner" ? avaEdit(u, 72, "user:" + u.id, "t") : ava(u, 72, teacher ? "t" : "s")}<div class="col"><h2 style="font-size:20px">${esc(u.name)}</h2><span class="muted">${ROLE_L[u.role]} · ${fmtPhone(u.phone)}</span></div></div>
         ${teacher ? `<div class="doc-row">${ic("lock", 18)}<span class="small">Profilingizdagi ma’lumotlarni faqat administrator tahrirlay oladi. O‘zgartirish kerak bo‘lsa, administratorga murojaat qiling.</span></div>${linkTo("To‘liq profilim va reytingim →", "teacher-" + u.id)}` : ""}
       </section>
+      <section class="card"><h2>Til · Язык</h2>${langSwitch()}</section>
       <section class="card"><h2>Parolni almashtirish</h2>
         <form class="stack" style="gap:12px" data-submit="password">
           ${field("pold", "Joriy parol", { type: "password", ac: "current-password" })}
-          ${field("pnew", "Yangi parol", { type: "password", ac: "new-password", hint: "Kamida 6 belgi" })}
+          ${field("pnew", "Yangi parol", { type: "password", ac: "new-password", hint: "Kamida 8 belgi, harf va raqam" })}
           <button type="submit" class="btn" ${busy("pass") ? "disabled" : ""}>Saqlash</button>
         </form>
       </section>
+      <section class="card"><h2>Xavfsizlik</h2><span class="small muted">Telefoningiz yo‘qolsa yoki parolingizni boshqa odam bilgan bo‘lsa, barcha qurilmalardan chiqing. Parolni almashtirsangiz ham boshqa qurilmalar avtomatik chiqariladi.</span>
+        <button type="button" class="btn sec" style="align-self:flex-start" data-a="logout-all">${ic("logout", 16)} Barcha qurilmalardan chiqish</button></section>
     </div>`;
   },
 };
 SUBMITS.password = async () => {
-  await run("pass", () => post("/me/password", { old: fv("pold"), new: fv("pnew") }), { ok: "Parol almashtirildi" });
+  const r = await run("pass", () => post("/me/password", { old: fv("pold"), new: fv("pnew") }), { ok: "Parol almashtirildi. Boshqa qurilmalar tizimdan chiqarildi." });
+  if (r?.token) setToken(r.token);
   S.f.pold = S.f.pnew = ""; render();
 };
 
 /* ================= notifications ================= */
-const NOTIF_IC = { feedback: "chat", rating: "star", unlock: "key", news: "news", openlesson: "megaphone", achievement: "trophy" };
+const NOTIF_IC = { feedback: "chat", rating: "star", unlock: "key", news: "news", openlesson: "megaphone", achievement: "trophy", absence: "bell" };
+ACTIONS["logout-all"] = async () => { try { await post("/auth/logout-all", {}); } catch {} logout(); };
 MODALS.notifications = () => {
   const n = data("/notifications");
   return `${modalHead("Bildirishnomalar")}${n === undefined ? `<div class="row" style="justify-content:center;padding:16px"><span class="spin"></span></div>` : n.items.length ? `<div class="list">${n.items.map((x) => `<button type="button" class="row" style="border:0;background:${x.read ? "transparent" : "var(--accent-soft)"};border-radius:12px;padding:10px;text-align:left;align-items:flex-start;width:100%" data-a="notif-go" data-r="${esc(x.link || "")}"><span class="avatar" style="width:36px;height:36px">${ic(NOTIF_IC[x.kind] || "bell", 17)}</span><span class="col grow"><b class="small">${esc(x.title)}</b>${x.body ? `<span class="small muted">${esc(x.body)}</span>` : ""}<span class="xs muted">${fmtWhen(x.created_at)}</span></span></button>`).join("")}</div>` : empty("Hozircha bildirishnoma yo‘q")}`;

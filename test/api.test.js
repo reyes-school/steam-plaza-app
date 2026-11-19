@@ -16,7 +16,7 @@ assert.equal((await call("/students")).status, 401, "needs login");
 
 // staff accounts and permissions
 const mgr = await call("/users", { method: "POST", body: { role: "manager", name: "Menejer Test", phone: "+998931110001", password: "manager1" } }, O); assert.equal(mgr.status, 200);
-const acc = await call("/users", { method: "POST", body: { role: "accountant", name: "Buxgalter Test", phone: "+998931110002", password: "account1" } }, O); assert.equal(acc.status, 200);
+const acc = await call("/users", { method: "POST", body: { role: "accountant", name: "Buxgalter Test", phone: "+998931110002", password: "account1", branch_id: 1 } }, O); assert.equal(acc.status, 200);
 const M = await login("+998931110001", "manager1"), A = await login("+998931110002", "account1");
 assert.equal((await call("/users", { method: "POST", body: { role: "owner", name: "Hacker X", phone: "+998931110003", password: "123456" } }, M)).status, 403, "manager cannot create admins");
 assert.equal((await call("/finance/ledger", {}, M)).status, 403, "manager has no finance");
@@ -30,9 +30,9 @@ const cls = (await call("/classes", { method: "POST", body: { name: "9-T", leade
 const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Tashkent" }).format(new Date());
 const wd = new Date(today + "T00:00:00Z").getUTCDay() || 1;
 assert.equal((await call("/schedule", { method: "PUT", body: { class_id: cls.id, weekday: wd, period: 1, subject_id: sub.id, teacher_id: tch.id } }, M)).status, 200);
-const st = await call("/students", { method: "POST", body: { first_name: "Ali", last_name: "Valiyev", class_id: cls.id, monthly_fee: 2000000, parent: { name: "Vali Valiyev", phone: "+998931110020", password: "parent1" } } }, M);
+const st = await call("/students", { method: "POST", body: { first_name: "Ali", last_name: "Valiyev", class_id: cls.id, monthly_fee: 2000000, parent: { name: "Vali Valiyev", phone: "+998931110020", password: "parent12" } } }, M);
 assert.equal(st.status, 200);
-const T = await login("+998931110010", "teacher1"), P = await login("+998931110020", "parent1");
+const T = await login("+998931110010", "teacher1"), P = await login("+998931110020", "parent12");
 assert.equal((await call("/users/" + tch.id, { method: "PATCH", body: { name: "O‘zgartirdim" } }, T)).status, 403, "teacher cannot edit own profile");
 assert.equal((await call("/students/" + st.body.id, { method: "PATCH", body: { profile: { notes: "Faol" } } }, T)).status, 200, "teacher edits student");
 assert.equal((await call("/students/" + st.body.id, { method: "PATCH", body: { monthly_fee: 1 } }, T)).body.monthly_fee, 2000000, "teacher cannot change fee");
@@ -55,7 +55,8 @@ if (new Date(today + "T00:00:00Z").getUTCDay() !== 0) {
 // rating → notification to teacher
 assert.equal((await call("/teacher-ratings", { method: "POST", body: { teacher_id: tch.id, stars: 5, comment: "Zo‘r" } }, P)).status, 200);
 const n = (await call("/notifications", {}, T)).body; assert.ok(n.items.some((x) => x.kind === "rating"), "teacher notified");
-const rev = (await call(`/teachers/${tch.id}`, {}, P)).body.reviews; assert.equal(rev[0].parent_name, "Vali Valiyev");
+const rev = (await call(`/teachers/${tch.id}`, {}, P)).body.reviews; assert.equal(rev[0].parent_name, undefined, "parent names hidden from other parents");
+assert.equal((await call(`/teachers/${tch.id}`, {}, O)).body.reviews[0].parent_name, "Vali Valiyev");
 assert.equal((await call(`/teachers/${tch.id}`, {}, P)).body.profile.salary, undefined, "salary hidden from parents");
 
 // files: private docs only for admins
@@ -74,4 +75,51 @@ for (const p of [`/pdf/student/${st.body.id}`, `/pdf/teacher/${tch.id}`, "/pdf/r
 }
 assert.equal((await call(`/pdf/student/${st.body.id}`, {}, P)).status, 200, "parent downloads child pdf");
 assert.equal((await call("/pdf/report", {}, P)).status, 403);
+
+// ---------- 3-versiya: filiallar, kelmaslik xabari, xavfsizlik ----------
+const br = (await call("/branches", {}, O)).body; assert.ok(br.length >= 2, "two branches");
+const B2 = br[1].id;
+const kg = (await call("/classes", { method: "POST", body: { name: "Quyoshcha", branch_id: B2, section: "kindergarten" } }, O)).body;
+assert.equal(kg.section, "kindergarten");
+const kid = await call("/students", { method: "POST", body: { first_name: "Laylo", last_name: "Karimova", class_id: kg.id, monthly_fee: 1500000, parent: { name: "Karim Karimov", phone: "+998931110030", password: "parent123" } } }, O);
+assert.equal(kid.body.branch_id, B2); assert.equal(kid.body.section, "kindergarten");
+assert.equal((await call(`/students/${kid.body.id}`, {}, A)).status, 403, "accountant of branch 1 cannot see branch 2 child");
+assert.ok((await call("/students", {}, A)).body.every((s) => s.branch_id === 1), "accountant list limited to own branch");
+assert.equal((await call("/payments", { method: "POST", body: { student_id: kid.body.id, month: today.slice(0, 7), amount: 1500000 } }, A)).status, 403, "no payments into other branch");
+const A2 = (await call("/users", { method: "POST", body: { role: "accountant", name: "Buxgalter Ikki", phone: "+998931110004", password: "account2", branch_id: B2 } }, O)).body;
+const A2t = await login("+998931110004", "account2");
+assert.equal((await call("/payments", { method: "POST", body: { student_id: kid.body.id, month: today.slice(0, 7), amount: 1500000 } }, A2t)).status, 200);
+assert.equal((await call("/users", { method: "POST", body: { role: "accountant", name: "Filialsiz", phone: "+998931110005", password: "account3" } }, O)).status, 400, "accountant needs a branch");
+const ov = (await call("/reports/overview", {}, O)).body; assert.equal(ov.branches.length, br.length);
+assert.equal(ov.branches.find((b) => b.id === B2).sections.kindergarten.income, 1500000, "overview by branch and section");
+const ovA = (await call("/reports/overview", {}, A2t)).body; assert.equal(ovA.branches.length, 1, "accountant sees only own branch");
+assert.ok((await call("/finance/ledger", {}, A2t)).body.payments.every((p) => p.branch_id === B2));
+// absence notice → class leader + administration notified
+const P2 = await login("+998931110030", "parent123");
+assert.equal((await call("/absences", { method: "POST", body: { student_id: st.body.id, date_from: today, reason: "Kasal" } }, P2)).status, 403, "only own child");
+const ab = await call("/absences", { method: "POST", body: { student_id: st.body.id, date_from: today, date_to: today, kind: "sick", reason: "Isitmasi bor" } }, P);
+assert.equal(ab.status, 200, JSON.stringify(ab.body));
+assert.ok((await call("/notifications", {}, T)).body.items.some((x) => x.kind === "absence"), "class leader notified");
+assert.ok((await call("/notifications", {}, O)).body.items.some((x) => x.kind === "absence"), "admin notified");
+assert.ok((await call("/absences", {}, T)).body.some((a) => a.id === ab.body.id), "teacher sees absence");
+// student card: parents only within their children's branch
+assert.equal((await call(`/students/${kid.body.id}/card`, {}, P)).status, 403);
+// token revocation: password reset by admin logs the user out everywhere
+assert.equal((await call("/me", {}, P2)).status, 200);
+assert.equal((await call("/users/" + kid.body.parent_id, { method: "PATCH", body: { password: "newpass99" } }, O)).status, 200);
+assert.equal((await call("/me", {}, P2)).status, 401, "old token revoked");
+assert.equal((await call("/users", { method: "POST", body: { role: "parent", name: "Qisqa Parol", phone: "+998931110040", password: "123456" } }, O)).status, 400, "weak password rejected");
+// substitute must be assigned by administration
+const T2u = (await call("/users", { method: "POST", body: { role: "teacher", name: "Boshqa Ustoz", phone: "+998931110011", password: "teacher22" } }, O)).body;
+const T2 = await login("+998931110011", "teacher22");
+assert.equal((await call("/lessons/start", { method: "POST", body: { class_id: cls.id, period: 1, topic: "Begona dars", substitute: 1 } }, T2)).status, 403, "no self-assigned substitute");
+// files: content must match the declared type
+const fake = "data:image/png;base64," + Buffer.from("<script>alert(1)</script>").toString("base64");
+assert.equal((await call("/files", { method: "POST", body: { name: "x.png", type: "image/png", data: fake } }, M)).status, 415);
+// malformed URL does not crash the server
+assert.equal((await fetch(B.replace(/\/api$/, "") + "/%")).status, 400);
+assert.equal((await call("/health")).status, 200, "server still alive");
+// audit log
+assert.ok((await call("/audit", {}, O)).body.some((a) => a.action === "payment.create"));
+assert.equal((await call("/audit", {}, A)).status, 403);
 console.log("API tests passed");

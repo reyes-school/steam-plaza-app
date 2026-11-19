@@ -1,4 +1,7 @@
 // Core of the web app: state, API client, data cache, router, rendering, shared UI pieces.
+import { LANG, t, t as tl, translateDom, RU_MONTHS_GEN, RU_MONTHS, RU_MONTHS_S, RU_WD, RU_WDS } from "./i18n.js";
+export { LANG, t };
+if (typeof document !== "undefined") document.documentElement.lang = LANG;
 export const TZ = "Asia/Tashkent";
 export const pad = (n) => String(n).padStart(2, "0");
 export function tzNow() {
@@ -13,18 +16,20 @@ export const wdOf = (iso) => { const [y, m, d] = iso.split("-").map(Number); ret
 export const mondayOf = (iso) => { const w = wdOf(iso); return addDays(iso, w === 0 ? -6 : 1 - w); };
 export const monthShift = (ym, n) => { const [y, m] = ym.split("-").map(Number); return new Date(Date.UTC(y, m - 1 + n, 1)).toISOString().slice(0, 7); };
 export const monthEnd = (ym) => addDays(monthShift(ym, 1) + "-01", -1);
-export const MONTHS = ["yanvar", "fevral", "mart", "aprel", "may", "iyun", "iyul", "avgust", "sentabr", "oktabr", "noyabr", "dekabr"];
-export const MONTHS_S = ["yan", "fev", "mar", "apr", "may", "iyn", "iyl", "avg", "sen", "okt", "noy", "dek"];
-export const WD = ["Yakshanba", "Dushanba", "Seshanba", "Chorshanba", "Payshanba", "Juma", "Shanba"];
-export const WDS = ["Ya", "Du", "Se", "Ch", "Pa", "Ju", "Sh"];
-export const fmtDay = (iso) => { if (!iso) return ""; const s = String(iso); const [, m, d] = s.slice(0, 10).split("-").map(Number); return m ? `${d}-${MONTHS[m - 1]}` : ""; };
-export const fmtDate = (iso) => { if (!iso) return ""; const [y, m, d] = String(iso).slice(0, 10).split("-").map(Number); return m ? `${d}-${MONTHS[m - 1]} ${y}` : ""; };
+const RU = LANG === "ru";
+export const MONTHS = RU ? RU_MONTHS_GEN : ["yanvar", "fevral", "mart", "aprel", "may", "iyun", "iyul", "avgust", "sentabr", "oktabr", "noyabr", "dekabr"];
+const MONTHS_NOM = RU ? RU_MONTHS : MONTHS.map((n) => n[0].toUpperCase() + n.slice(1));
+export const MONTHS_S = RU ? RU_MONTHS_S : ["yan", "fev", "mar", "apr", "may", "iyn", "iyl", "avg", "sen", "okt", "noy", "dek"];
+export const WD = RU ? RU_WD : ["Yakshanba", "Dushanba", "Seshanba", "Chorshanba", "Payshanba", "Juma", "Shanba"];
+export const WDS = RU ? RU_WDS : ["Ya", "Du", "Se", "Ch", "Pa", "Ju", "Sh"];
+export const fmtDay = (iso) => { if (!iso) return ""; const s = String(iso); const [, m, d] = s.slice(0, 10).split("-").map(Number); return m ? (RU ? `${d} ${MONTHS[m - 1]}` : `${d}-${MONTHS[m - 1]}`) : ""; };
+export const fmtDate = (iso) => { if (!iso) return ""; const [y, m, d] = String(iso).slice(0, 10).split("-").map(Number); return m ? (RU ? `${d} ${MONTHS[m - 1]} ${y}` : `${d}-${MONTHS[m - 1]} ${y}`) : ""; };
 export const fmtTime = (iso) => { const t = Date.parse(iso); return Number.isNaN(t) ? "" : new Intl.DateTimeFormat("uz-UZ", { timeZone: TZ, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date(t)); };
-export const fmtWhen = (iso) => { const t = Date.parse(iso); if (Number.isNaN(t)) return ""; const d = new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(new Date(t)); return (d === today() ? "Bugun" : d === addDays(today(), -1) ? "Kecha" : fmtDay(d)) + ", " + fmtTime(iso); };
-export const fmtMonth = (ym) => { if (!ym) return ""; const [y, m] = ym.split("-").map(Number); const n = MONTHS[m - 1]; return n[0].toUpperCase() + n.slice(1) + " " + y; };
+export const fmtWhen = (iso) => { const t = Date.parse(iso); if (Number.isNaN(t)) return ""; const d = new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(new Date(t)); return (d === today() ? tl("Bugun") : d === addDays(today(), -1) ? tl("Kecha") : fmtDay(d)) + ", " + fmtTime(iso); };
+export const fmtMonth = (ym) => { if (!ym) return ""; const [y, m] = ym.split("-").map(Number); return MONTHS_NOM[m - 1] + " " + y; };
 export const fmtNum = (n) => (n == null || Number.isNaN(Number(n)) ? "—" : Math.round(Number(n)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, " "));
-export const fmtSum = (n) => fmtNum(n) + " so‘m";
-export const fmtMln = (n) => (Number(n) / 1e6).toFixed(1).replace(".", ",") + " mln";
+export const fmtSum = (n) => fmtNum(n) + (RU ? " сум" : " so‘m");
+export const fmtMln = (n) => (Number(n) / 1e6).toFixed(1).replace(".", ",") + (RU ? " млн" : " mln");
 export const fmtAvg = (n) => (n == null ? "—" : Number(n).toFixed(1).replace(".", ","));
 export const fmtLocal = (v) => { let d = String(v || "").replace(/\D/g, ""); if (d.length > 9 && d.startsWith("998")) d = d.slice(3); d = d.slice(0, 9); return [d.slice(0, 2), d.slice(2, 5), d.slice(5, 7), d.slice(7, 9)].filter(Boolean).join(" "); };
 export const FLAG = `<span class="flag" aria-hidden="true"><i></i><i></i><i></i></span>`;
@@ -38,6 +43,32 @@ export const ROLE_L = { owner: "Bosh admin", manager: "Menejer", accountant: "Bu
 export const ADMINS = ["owner", "manager", "accountant"];
 export const STAFF = ["owner", "manager"];
 export const FINANCE = ["owner", "accountant"];
+export const SECTION_L = { school: "Maktab", kindergarten: "Bog‘cha" };
+export const branches = () => S.me?.branches || [];
+export const branchName = (id) => branches().find((b) => b.id === Number(id))?.name || "";
+/** null = the user sees every branch (bosh admin / umumiy menejer); a number = limited to that branch. */
+export const myScope = () => (S.me ? S.me.scope ?? null : null);
+const roleLine = (u) => `${ROLE_L[u.role]}${u.branch_id && ["manager", "accountant", "teacher"].includes(u.role) ? " · " + branchName(u.branch_id) : ""}`;
+/** Query string with the branch / section filter chosen in scopeBar(). */
+export function fq(prefix = "&") {
+  const b = myScope() === null ? S.ui.fb || "" : "", s = S.ui.fs || "";
+  const q = [b ? "branch_id=" + b : "", s ? "section=" + s : ""].filter(Boolean).join("&");
+  return q ? prefix + q : "";
+}
+/** Branch + section switcher for lists and reports. Branch staff see only the section switch. */
+export function scopeBar({ section = true } = {}) {
+  const all = myScope() === null;
+  const bs = [["", "Barcha filiallar"], ...branches().map((b) => [String(b.id), b.name])];
+  return `<div class="row wrap" style="gap:8px;align-items:center">${all && branches().length > 1 ? pills("fb", S.ui.fb || "", bs) : `<span class="badge">${ic("school", 14)} ${esc(branchName(myScope()) || branches()[0]?.name || "")}</span>`}
+    ${section ? pills("fs", S.ui.fs || "", [["", "Maktab va bog‘cha"], ["school", "Maktab"], ["kindergarten", "Bog‘cha"]]) : ""}</div>`;
+}
+/** Random password that passes the server rules (letters + digits, 10 characters). */
+export function genPassword() {
+  const L = "abcdefghjkmnpqrstuvwxyz", D = "23456789", all = L + D, r = (n) => crypto.getRandomValues(new Uint32Array(1))[0] % n;
+  let p = L[r(L.length)] + D[r(D.length)];
+  while (p.length < 10) p += all[r(all.length)];
+  return p.split("").sort(() => r(3) - 1).join("");
+}
 
 /** Bell schedule → [{period, start, end}] in minutes since midnight. */
 export function periodTimes(bell) {
@@ -112,9 +143,12 @@ export const group = () => (ADMINS.includes(role()) ? "admin" : role());
 export const settings = () => S.me?.settings || {};
 
 /* ---------- API ---------- */
+// Web: same origin. Mobile apps (Capacitor) load config.js that points to the live server.
+export const API_BASE = String((window.SP_CONFIG && window.SP_CONFIG.api) || "").replace(/\/+$/, "");
+export const native = { save: null, haptic: null, isApp: !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()) };
 export class ApiError extends Error { constructor(status, msg) { super(msg); this.status = status; } }
 export async function api(path, opts = {}) {
-  const r = await fetch("/api" + path, { ...opts, headers: { "Content-Type": "application/json", ...(S.token ? { Authorization: "Bearer " + S.token } : {}), ...(opts.headers || {}) }, body: opts.body && typeof opts.body !== "string" ? JSON.stringify(opts.body) : opts.body });
+  const r = await fetch(API_BASE + "/api" + path, { ...opts, headers: { "Content-Type": "application/json", ...(S.token ? { Authorization: "Bearer " + S.token } : {}), ...(opts.headers || {}) }, body: opts.body && typeof opts.body !== "string" ? JSON.stringify(opts.body) : opts.body });
   if (r.status === 401 && S.token && !path.startsWith("/auth")) { logout(); throw new ApiError(401, "Tizimga qayta kiring"); }
   const ct = r.headers.get("content-type") || "";
   const body = ct.includes("json") ? await r.json().catch(() => ({})) : await r.blob();
@@ -225,7 +259,7 @@ export function avatarSvg(seed, female, size) {
   const top = female ? `<path d="M19 28c2-9 7-14 13-14s11 5 13 14c-5-4-9-6-13-6s-8 2-13 6z" fill="${hair}"/>` : `<path d="M18 29c0-11 6-17 14-17s14 6 14 17c-2-5-6-8-14-8s-12 3-14 8z" fill="${hair}"/>`;
   return `<svg width="${size}" height="${size}" viewBox="0 0 64 64" aria-hidden="true" style="border-radius:50%;display:block;flex-shrink:0"><rect width="64" height="64" fill="${bg}"/>${back}<path d="M11 64c2-11 10-16 21-16s19 5 21 16z" fill="${shirt}"/><rect x="28" y="40" width="8" height="9" rx="3" fill="${skin}"/><circle cx="32" cy="31" r="13" fill="${skin}"/>${top}<circle cx="27" cy="31.5" r="1.6" fill="#2a1a10"/><circle cx="37" cy="31.5" r="1.6" fill="#2a1a10"/><path d="M28 36.5c2.2 2 5.8 2 8 0" stroke="#7a3e2a" stroke-width="1.6" fill="none" stroke-linecap="round"/></svg>`;
 }
-export const fileUrl = (f) => (f && f.id ? `/api/files/${f.id}` : "");
+export const fileUrl = (f) => (f && f.id ? `${API_BASE}/api/files/${f.id}` : "");
 /** Photo if uploaded, otherwise an illustrated avatar. p: {id, photo, gender | profile.gender}, kind 's' or 't' */
 export function ava(p, size = 40, kind = "s") {
   if (!p) return avatarSvg(1, false, size);
@@ -307,7 +341,8 @@ export function fileLinks(list, { priv = false } = {}) {
 export async function download(path, name) {
   S.ui.busy = "dl:" + path; render();
   try {
-    const blob = await api(path);
+    const blob = await api(RU && path.startsWith("/pdf/") ? path + (path.includes("?") ? "&" : "?") + "lang=ru" : path);
+    if (native.save) { await native.save(blob, name); return; }
     const url = URL.createObjectURL(blob), a = document.createElement("a");
     a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 30000);
@@ -451,12 +486,12 @@ function shell(view, content) {
       <div class="brand"><img src="/logo-mark.png" alt="" width="62" height="32" style="object-fit:contain"><div class="col" style="gap:0"><span class="brand-name">${esc(sch.name || "Steam Plaza")}</span><span class="xs muted">${esc(sch.subtitle || "")}</span></div></div>
       <nav class="nav">${nav.map(item).join("")}
         <button type="button" class="nav-item" data-a="bell">${ic("bell", 20)}Bildirishnomalar${unread ? `<span class="count">${unread}</span>` : ""}</button></nav>
-      <div class="me"><button type="button" class="ava-btn" data-a="go" data-r="profile" aria-label="Profil">${ava(u, 36, u.role === "teacher" ? "t" : "s")}</button><div class="col grow" style="gap:0"><b class="small" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(u.name)}</b><span class="xs muted">${ROLE_L[u.role]}</span></div><button type="button" class="iconbtn" style="width:38px;height:38px;border:0;background:transparent" data-a="logout" aria-label="Chiqish">${ic("logout", 19)}</button></div>
+      <div class="me"><button type="button" class="ava-btn" data-a="go" data-r="profile" aria-label="Profil">${ava(u, 36, u.role === "teacher" ? "t" : "s")}</button><div class="col grow" style="gap:0"><b class="small" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(u.name)}</b><span class="xs muted">${esc(roleLine(u))}</span></div><button type="button" class="iconbtn" style="width:38px;height:38px;border:0;background:transparent" data-a="logout" aria-label="Chiqish">${ic("logout", 19)}</button></div>
     </aside>
     <div class="main">
       <header class="top"><div class="top-row">
         ${view.back ? `<button type="button" class="iconbtn" data-a="back" aria-label="Orqaga">${ic("back", 18)}</button>` : ""}
-        <div class="top-brand"><img src="/logo-mark.png" alt="" width="46" height="26" style="object-fit:contain;flex-shrink:0"><div style="min-width:0"><b>${esc(sch.name || "Steam Plaza")}</b><span class="xs muted">${ROLE_L[u.role]}</span></div></div>
+        <div class="top-brand"><img src="/logo-mark.png" alt="" width="46" height="26" style="object-fit:contain;flex-shrink:0"><div style="min-width:0"><b>${esc(sch.name || "Steam Plaza")}</b><span class="xs muted">${esc(roleLine(u))}</span></div></div>
         <button type="button" class="iconbtn" data-a="bell" aria-label="Bildirishnomalar${unread ? `: ${unread} ta yangi` : ""}">${ic("bell", 18)}${unread ? '<span class="dot"></span>' : ""}</button>
         <button type="button" class="ava-btn" data-a="go" data-r="profile" aria-label="Profil">${ava(u, 36, u.role === "teacher" ? "t" : "s")}</button></div>
       </header>
@@ -497,6 +532,7 @@ export function render() {
   }
   if (S.toast) html += `<div class="toast" role="status">${esc(S.toast)}</div>`;
   root.innerHTML = html;
+  if (RU) { try { translateDom(root); document.title = tl(document.title); } catch (e) { console.error(e); } }
   if (scrollModal) { const m = document.querySelector(".modal"); if (m) m.scrollTop = scrollModal; }
   if (S.me && S.token) { try { afterRender(S._routeKey); } catch (e) { console.error(e); } S._pageIn = false; }
   if (focusId) { const el = document.getElementById(focusId); if (el) { el.focus({ preventScroll: true }); if (sel && el.setSelectionRange) { try { el.setSelectionRange(sel[0], sel[1]); } catch {} } } }

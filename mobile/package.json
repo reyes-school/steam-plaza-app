@@ -1,0 +1,29 @@
+{
+  "name": "steamplaza-mobile",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build-www.mjs",
+    "sync": "node scripts/build-www.mjs && npx cap sync",
+    "android": "node scripts/build-www.mjs && npx cap sync android && npx cap open android",
+    "ios": "node scripts/build-www.mjs && npx cap sync ios && npx cap open ios",
+    "assets": "npx @capacitor/assets generate --iconBackgroundColor '#FFFFFF' --splashBackgroundColor '#1A9F5B'"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.0.0",
+    "@capacitor/app": "^8.0.0",
+    "@capacitor/core": "^8.0.0",
+    "@capacitor/filesystem": "^8.0.0",
+    "@capacitor/haptics": "^8.0.0",
+    "@capacitor/ios": "^8.0.0",
+    "@capacitor/keyboard": "^8.0.0",
+    "@capacitor/share": "^8.0.0",
+    "@capacitor/splash-screen": "^8.0.0",
+    "@capacitor/status-bar": "^8.0.0"
+  },
+  "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
+    "@capacitor/cli": "^8.0.0"
+  }
+}
