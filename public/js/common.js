@@ -3,9 +3,10 @@ import {
   S, VIEWS, ACTIONS, SUBMITS, MODALS, render, go, api, post, patch, del, put, run, busy, data, pending, invalidate, toast, openModal, closeModal, modalHead,
   esc, ic, badge, seg, pills, cardHead, empty, bar, field, fv, fill, starsHtml, rankMark, avgColor, ava, avaEdit, fileBox, fileLinks, fileUrl, isImg, pdfBtn,
   fmtDay, fmtDate, fmtTime, fmtWhen, fmtMonth, fmtNum, fmtSum, fmtAvg, fmtPhone, fmtSize, hm, sName, initials, today, curMonth, addDays, mondayOf, monthShift, monthEnd, wdOf,
-  WD, WDS, MONTHS, MONTHS_S, ROLE_L, ADMINS, STAFF, FINANCE, user, role, group, settings, periodTimes, setToken, loadMe, logout, linkTo, tzNow, fmtLocal, FLAG, ring, subjTone, TONE, PLANE, greeting, tile, banner, sparkline,
+  upMb, native, WD, WDS, MONTHS, MONTHS_S, ROLE_L, ADMINS, STAFF, FINANCE, user, role, group, settings, periodTimes, setToken, loadMe, logout, linkTo, tzNow, fmtLocal, FLAG, ring, subjTone, TONE, PLANE, greeting, tile, banner, sparkline,
 } from "./core.js";
 import { LANG, LANGS, setLang } from "./i18n.js";
+import { initPush, enablePush, disablePush, pushState } from "./push.js";
 
 /* ================= login ================= */
 /** UZ | RU switch; the page reloads in the chosen language. */
@@ -27,14 +28,30 @@ VIEWS["*:login"] = {
         <button type="submit" class="btn" ${busy("login") ? "disabled" : ""}>${busy("login") ? "Kirilmoqda…" : "Kirish"}</button>
         <span class="xs muted" style="text-align:center">Parolni maktab administratori beradi. Unutgan bo‘lsangiz, administratorga murojaat qiling.</span>
       </form>
+      ${demoBox()}
     </div>`;
   },
+};
+/* Demo logins: shown only when the server says demo mode is on (never in production unless ALLOW_DEMO=1). */
+let demoInfo = null;
+function demoBox() {
+  if (demoInfo === null) { demoInfo = false; api("/demo-info").then((r) => { demoInfo = r; if (r.enabled && r.accounts.length && !S.me) render(); }).catch(() => {}); return ""; }
+  if (!demoInfo || !demoInfo.enabled || !demoInfo.accounts.length) return "";
+  return `<section class="login-sheet demo-box" aria-label="Demo hisoblar">
+    <h2 style="font-size:17px">Demo hisoblar</h2>
+    <span class="xs muted">Sinab ko‘rish uchun bosing — parol hammasida <b data-notr>${esc(demoInfo.password)}</b></span>
+    <div class="demo-list">${demoInfo.accounts.map((a) => `<button type="button" class="demo-acc" data-a="demo-fill" data-p="${esc(a.phone)}"><b>${esc(ROLE_L[a.role] || a.role)}</b><span class="xs">${esc(a.note)}</span><span class="xs muted" data-notr>${esc(fmtPhone(a.phone))}</span></button>`).join("")}</div>
+  </section>`;
+}
+ACTIONS["demo-fill"] = (el) => {
+  S.f = { ...(S.f || {}), lphone: el.dataset.p.replace(/^\+998/, ""), lpass: demoInfo.password };
+  SUBMITS.login();
 };
 SUBMITS.login = async () => {
   S.ui.loginErr = "";
   try {
     const r = await run("login", () => post("/auth/login", { phone: fv("lphone"), password: fv("lpass") }));
-    setToken(r.token); S.f = {}; await loadMe(); location.hash = ""; render();
+    setToken(r.token); S.f = {}; await loadMe(); location.hash = ""; render(); initPush().then(render);
   } catch (e) { S.ui.loginErr = e.message; render(); }
 };
 
@@ -50,6 +67,7 @@ VIEWS["*:profile"] = {
         ${teacher ? `<div class="doc-row">${ic("lock", 18)}<span class="small">Profilingizdagi ma’lumotlarni faqat administrator tahrirlay oladi. O‘zgartirish kerak bo‘lsa, administratorga murojaat qiling.</span></div>${linkTo("To‘liq profilim va reytingim →", "teacher-" + u.id)}` : ""}
       </section>
       <section class="card"><h2>Til · Язык</h2>${langSwitch()}</section>
+      ${native.isApp ? "" : `<section class="card"><h2>Bildirishnomalar</h2>${pushPanel()}</section>`}
       <section class="card"><h2>Parolni almashtirish</h2>
         <form class="stack" style="gap:12px" data-submit="password">
           ${field("pold", "Joriy parol", { type: "password", ac: "current-password" })}
@@ -71,9 +89,20 @@ SUBMITS.password = async () => {
 /* ================= notifications ================= */
 const NOTIF_IC = { feedback: "chat", rating: "star", unlock: "key", news: "news", openlesson: "megaphone", achievement: "trophy", absence: "bell" };
 ACTIONS["logout-all"] = async () => { try { await post("/auth/logout-all", {}); } catch {} logout(); };
+/** Browser notifications switch (website only). */
+export function pushPanel(compact = false) {
+  const st = pushState();
+  if (st === "unsupported") return compact ? "" : `<div class="doc-row">${ic("bell", 18)}<span class="small muted">Bu brauzerda push-bildirishnomalar ishlamaydi. iPhone’da: Safari → “Ulashish” → “Bosh ekranga qo‘shish”, keyin ilovadan kiring.</span></div>`;
+  if (st === "denied") return `<div class="doc-row">${ic("bell", 18)}<span class="small">Bildirishnomalar brauzerda bloklangan. Manzil satridagi 🔒 belgisi → “Bildirishnomalar” → “Ruxsat berish”.</span></div>`;
+  if (st === "on") return `<div class="row wrap push-row" style="gap:8px">${badge("Bildirishnomalar yoqilgan", "green")}<button type="button" class="btn ghost sm" data-a="push-test" ${busy("pusht") ? "disabled" : ""}>Sinab ko‘rish</button><button type="button" class="linkbtn xs" data-a="push-off">O‘chirish</button></div>`;
+  return `<div class="push-cta">${ic("bell", 20)}<span class="col grow"><b class="small">Brauzer bildirishnomalari</b><span class="xs muted">Baho, davomat, kelmaslik xabari va yangiliklar sayt yopiq bo‘lsa ham kompyuter yoki telefoningizga keladi.</span></span><button type="button" class="btn sm" data-a="push-on">Yoqish</button></div>`;
+}
+ACTIONS["push-on"] = () => enablePush();
+ACTIONS["push-off"] = () => disablePush();
+ACTIONS["push-test"] = () => run("pusht", () => post("/push/test", {}), { ok: "Sinov xabari yuborildi" });
 MODALS.notifications = () => {
   const n = data("/notifications");
-  return `${modalHead("Bildirishnomalar")}${n === undefined ? `<div class="row" style="justify-content:center;padding:16px"><span class="spin"></span></div>` : n.items.length ? `<div class="list">${n.items.map((x) => `<button type="button" class="row" style="border:0;background:${x.read ? "transparent" : "var(--accent-soft)"};border-radius:12px;padding:10px;text-align:left;align-items:flex-start;width:100%" data-a="notif-go" data-r="${esc(x.link || "")}"><span class="avatar" style="width:36px;height:36px">${ic(NOTIF_IC[x.kind] || "bell", 17)}</span><span class="col grow"><b class="small">${esc(x.title)}</b>${x.body ? `<span class="small muted">${esc(x.body)}</span>` : ""}<span class="xs muted">${fmtWhen(x.created_at)}</span></span></button>`).join("")}</div>` : empty("Hozircha bildirishnoma yo‘q")}`;
+  return `${modalHead("Bildirishnomalar")}${pushPanel(true)}${n === undefined ? `<div class="row" style="justify-content:center;padding:16px"><span class="spin"></span></div>` : n.items.length ? `<div class="list">${n.items.map((x) => `<button type="button" class="row" style="border:0;background:${x.read ? "transparent" : "var(--accent-soft)"};border-radius:12px;padding:10px;text-align:left;align-items:flex-start;width:100%" data-a="notif-go" data-r="${esc(x.link || "")}"><span class="avatar" style="width:36px;height:36px">${ic(NOTIF_IC[x.kind] || "bell", 17)}</span><span class="col grow"><b class="small">${esc(x.title)}</b>${x.body ? `<span class="small muted">${esc(x.body)}</span>` : ""}<span class="xs muted">${fmtWhen(x.created_at)}</span></span></button>`).join("")}</div>` : empty("Hozircha bildirishnoma yo‘q")}`;
 };
 
 /* ================= news & post pages ================= */
@@ -294,7 +323,7 @@ export function docsPanel(type, id, docs) {
     <form class="stack" style="gap:10px;border-top:1px solid var(--line);padding-top:12px" data-submit="doc-new" data-t="${type}" data-v="${id}">
       <b class="small">Yangi hujjat</b>
       <div class="row wrap" style="align-items:flex-end">${field("dkind", "Hujjat turi", { options: kinds.map((k) => [k, DOC_KIND[k]]), blank: false, def: kinds[0] })}</div>
-      ${fileBox("priv:doc", { label: "Faylni tanlash", multiple: false, hint: "Skaner, rasm yoki PDF, 3 MB gacha" })}
+      ${fileBox("priv:doc", { label: "Faylni tanlash", multiple: false, hint: `Skaner, rasm yoki PDF, ${upMb()} MB gacha · avtomatik siqiladi` })}
       <button type="submit" class="btn sm" style="align-self:flex-start" ${busy("doc") || !(S.files["priv:doc"] || []).length ? "disabled" : ""}>Hujjatni saqlash</button>
     </form>`;
 }

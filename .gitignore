@@ -12,3 +12,4 @@ mobile/android/local.properties
 mobile/ios/App/Pods/
 mobile/ios/DerivedData/
 mobile/ios/App/build/
+.env.local

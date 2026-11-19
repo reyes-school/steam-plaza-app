@@ -1,6 +1,6 @@
 {
   "name": "steamplaza-platform",
-  "version": "2.0.0",
+  "version": "3.1.0",
   "private": true,
   "type": "module",
   "engines": {
@@ -9,10 +9,16 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
-    "test": "node test/api.test.js"
+    "test": "node test/api.test.js",
+    "demo": "node scripts/demo.js",
+    "encrypt": "node scripts/encrypt.js"
   },
   "dependencies": {
+    "@pdf-lib/fontkit": "^1.1.1",
+    "pdf-lib": "^1.17.1",
     "pdfkit": "^0.15.2",
-    "postgres": "^3.4.7"
+    "postgres": "^3.4.7",
+    "sharp": "^0.35.5",
+    "web-push": "^4.0.0"
   }
 }

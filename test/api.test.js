@@ -122,4 +122,43 @@ assert.equal((await call("/health")).status, 200, "server still alive");
 // audit log
 assert.ok((await call("/audit", {}, O)).body.some((a) => a.action === "payment.create"));
 assert.equal((await call("/audit", {}, A)).status, 403);
+
+// ---- v4: demo info, encryption at rest, compression, documents inside PDFs, push ----
+const di = (await call("/demo-info")).body; assert.equal(di.enabled, true); assert.ok(Array.isArray(di.accounts));
+assert.equal((await call(`/students/${st.body.id}`, { method: "PATCH", body: { profile: { address: "Chilonzor 5-uy", health: "Allergiya: yong‘oq" } } }, O)).status, 200);
+assert.equal((await call(`/students/${st.body.id}`, {}, O)).body.profile.address, "Chilonzor 5-uy", "API returns decrypted value");
+if (process.env.DATABASE_URL) {
+  const pg = (await import("postgres")).default(process.env.DATABASE_URL, { max: 1 });
+  const [row] = await pg`select profile->>'address' as a, profile->>'health' as h from students where id = ${st.body.id}`;
+  assert.ok(row.a.startsWith("enc:v1:") && row.h.startsWith("enc:v1:"), "stored encrypted");
+  globalThis.__pg = pg;
+}
+// noisy 900×900 PNG built by hand (no image library needed in tests)
+const zlib = await import("node:zlib");
+const crcT = Array.from({ length: 256 }, (_, n) => { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; return c >>> 0; });
+const crc = (b) => { let c = 0xffffffff; for (const x of b) c = crcT[(c ^ x) & 0xff] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; };
+const chunk = (t, d) => { const len = Buffer.alloc(4); len.writeUInt32BE(d.length); const td = Buffer.concat([Buffer.from(t), d]); const c = Buffer.alloc(4); c.writeUInt32BE(crc(td)); return Buffer.concat([len, td, c]); };
+const W = 900, rowsPx = [];
+let seed = 7; const rnd = () => ((seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
+for (let y = 0; y < W; y++) { const r = Buffer.alloc(1 + W * 3); for (let x = 0; x < W; x++) { const n = (rnd() * 30) | 0; r[1 + x * 3] = (x / 5 + n) & 255; r[2 + x * 3] = (y / 5 + n) & 255; r[3 + x * 3] = 128 + n; } rowsPx.push(r); }
+const ihdr = Buffer.alloc(13); ihdr.writeUInt32BE(W, 0); ihdr.writeUInt32BE(W, 4); ihdr[8] = 8; ihdr[9] = 2;
+const png = Buffer.concat([Buffer.from("89504e470d0a1a0a", "hex"), chunk("IHDR", ihdr), chunk("IDAT", zlib.deflateSync(Buffer.concat(rowsPx))), chunk("IEND", Buffer.alloc(0))]);
+const up = await call("/files", { method: "POST", body: { name: "metrika.png", type: "image/png", scope: "private", data: "data:image/png;base64," + png.toString("base64") } }, O);
+assert.equal(up.status, 200, JSON.stringify(up.body));
+assert.ok(up.body.size < png.length, `compressed ${png.length} → ${up.body.size}`);
+const raw = await fetch(B + "/files/" + up.body.id, { headers: { Authorization: "Bearer " + O } });
+assert.equal(Buffer.from(await raw.arrayBuffer()).subarray(0, 4).toString("hex"), "89504e47", "served decrypted");
+if (globalThis.__pg) { const [f] = await globalThis.__pg`select substring(data from 1 for 4) as h from files where id = ${up.body.id}`; assert.equal(Buffer.from(f.h).toString(), "SPE1", "file encrypted in DB"); }
+const before = Buffer.from((await call(`/pdf/student/${st.body.id}`, {}, O)).body);
+assert.equal((await call("/documents", { method: "POST", body: { owner_type: "student", owner_id: st.body.id, kind: "metrika", name: "metrika.png", file: up.body } }, O)).status, 200);
+const after = Buffer.from((await call(`/pdf/student/${st.body.id}`, {}, O)).body);
+const { PDFDocument } = await import("pdf-lib");
+assert.equal((await PDFDocument.load(after)).getPageCount(), (await PDFDocument.load(before)).getPageCount() + 1, "scan appears as a page in the PDF");
+// push subscriptions: only real push services
+const bad = { endpoint: "https://evil.example.com/x", keys: { p256dh: "B".repeat(87), auth: "a".repeat(22) } };
+assert.equal((await call("/push/subscribe", { method: "POST", body: { subscription: bad } }, T)).status, 400);
+assert.equal((await call("/push/subscribe", { method: "POST", body: { subscription: { ...bad, endpoint: "https://fcm.googleapis.com/fcm/send/test-token" } } }, T)).status, 200);
+assert.ok((await call("/push/key", {}, T)).body.publicKey.length > 40);
+assert.equal((await call("/push/unsubscribe", { method: "POST", body: { endpoint: "https://fcm.googleapis.com/fcm/send/test-token" } }, T)).status, 200);
+if (globalThis.__pg) await globalThis.__pg.end();
 console.log("API tests passed");

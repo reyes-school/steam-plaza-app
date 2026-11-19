@@ -18,7 +18,7 @@ const ROOT = resolve("public");
 // Content-Security-Policy: scripts only from this site; no inline scripts, no frames, no plugins.
 const CSP = [
   "default-src 'self'", "script-src 'self'", "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com", "font-src 'self' https://fonts.gstatic.com",
-  "img-src 'self' data: blob:", "connect-src 'self'", "frame-ancestors 'none'", "base-uri 'self'", "form-action 'self'", "object-src 'none'",
+  "img-src 'self' data: blob:", "connect-src 'self'", "worker-src 'self'", "manifest-src 'self'", "frame-ancestors 'none'", "base-uri 'self'", "form-action 'self'", "object-src 'none'",
 ].join("; ");
 function staticHeaders(res) {
   res.setHeader("Content-Security-Policy", CSP);

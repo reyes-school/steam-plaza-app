@@ -252,10 +252,15 @@ select.input { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://ww
 .group .g-row .cc { display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: 17px; }
 .group .g-row:focus-within { background: #FAFDFB; }
 .group .eye { border: 0; background: transparent; color: var(--muted); padding: 6px; }
+.demo-box { margin-top: 14px; border-radius: 24px; gap: 10px; }
+.demo-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 8px; }
+.demo-acc { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; padding: 10px 12px; border-radius: 14px; border: 1px solid var(--line); background: var(--surface); cursor: pointer; font: inherit; color: inherit; }
+.demo-acc:hover, .demo-acc:focus-visible { border-color: var(--brand, #1B8A5A); }
 @media (min-width: 900px) {
   .login.ios { align-items: center; justify-content: center; padding: 40px; }
   .login-top { flex: 0; padding: 0 0 24px; }
   .login-sheet { width: 420px; border-radius: 28px; box-shadow: 0 24px 60px rgba(0, 0, 0, .25); }
+  .demo-box { width: 560px; }
 }
 
 /* =================== MOTION =================== */
@@ -381,3 +386,7 @@ img, svg, video, canvas { max-width: 100%; }
 .branch-card .stat { flex: 1 1 120px; padding: 12px 14px; }
 .branch-card .stat .v { font-size: 21px; }
 .branch-card h2 { white-space: nowrap; }
+
+/* browser notifications switch */
+.push-cta { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 14px; background: var(--accent-soft, #E8F5EE); margin-bottom: 10px; }
+.push-row { margin-bottom: 10px; align-items: center; }

@@ -6,6 +6,7 @@ import "./admin.js";
 import "./teacher.js";
 import "./parent.js";
 import "./branches.js";
+import { initPush, localNotify } from "./push.js";
 
 /* ---------- generic actions ---------- */
 Object.assign(ACTIONS, {
@@ -83,8 +84,13 @@ window.addEventListener("hashchange", () => { S.more = false; S.modal = null; re
 /* ---------- live refresh: notifications every 30 s, clock-driven views every 20 s ---------- */
 setInterval(async () => {
   if (!S.me || document.hidden) return;
-  try { const n = await api("/notifications"); if (n.unread !== S.me.unread) { S.me.unread = n.unread; render(); } } catch {}
-}, 30000);
+  try { const n = await api("/notifications"); if (n.unread !== S.me.unread) { const prev = S.me.unread || 0; S.me.unread = n.unread; localNotify(n.items, prev); render(); } } catch {}
+}, 20000);
+// a hidden tab still checks (slower) so the fallback notification can appear
+setInterval(async () => {
+  if (!S.me || !document.hidden || S.pushOn) return;
+  try { const n = await api("/notifications"); if (n.unread > (S.me.unread || 0)) { const prev = S.me.unread || 0; S.me.unread = n.unread; localNotify(n.items, prev); } } catch {}
+}, 60000);
 setInterval(() => {
   if (!S.me || document.hidden) return;
   const busyTyping = document.activeElement && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName);
@@ -99,4 +105,5 @@ setInterval(() => {
     try { await loadMe(); } catch (e) { if (e.status === 401) setToken(""); else toast("Server bilan aloqa yo‘q. Internetni tekshiring."); }
   }
   render();
+  if (S.me) initPush().then(render);
 })();

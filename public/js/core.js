@@ -292,14 +292,17 @@ export function shrinkImage(file, max = 1800, square = 0) {
 }
 const OK_TYPES = /^(image\/(jpeg|png|webp|gif)|application\/pdf|application\/msword|application\/vnd\.openxmlformats-officedocument\.(wordprocessingml\.document|spreadsheetml\.sheet|presentationml\.presentation)|application\/vnd\.ms-(excel|powerpoint))$/;
 const EXT_TYPES = { pdf: "application/pdf", doc: "application/msword", docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document", xls: "application/vnd.ms-excel", xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", ppt: "application/vnd.ms-powerpoint", pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation" };
+/** Upload size limit from the server (3 MB on Vercel, 10 MB on own server). */
+export const upMb = () => S.me?.uploadMaxMb || 3;
 export async function uploadFile(file, { scope = "public", square = 0 } = {}) {
   let type = file.type || EXT_TYPES[(file.name.split(".").pop() || "").toLowerCase()] || "";
   const image = /^image\//.test(type);
   if (!OK_TYPES.test(type) && !image) throw new Error("Faqat rasm, PDF, Word, Excel yoki PowerPoint fayl yuklang");
   const blob = image ? await shrinkImage(file, 1800, square) : file;
   if (image) type = blob.type || "image/jpeg";
-  if (blob.size > 3 * 1024 * 1024) throw new Error("Fayl juda katta: 3 MB gacha bo‘lsin");
-  return post("/files", { name: file.name, type, scope, data: await readAsDataUrl(blob) });
+  if (blob.size > upMb() * 1024 * 1024) throw new Error(`Fayl juda katta: ${upMb()} MB gacha bo‘lsin`);
+  const r = await post("/files", { name: file.name, type, scope, data: await readAsDataUrl(blob) });
+  return { ...r, original: Math.max(file.size || 0, r.original || 0) };
 }
 let picker = null;
 /** Opens the system file dialog; resolves with the chosen files. */
@@ -316,12 +319,14 @@ export async function pickAndUpload(key, { multiple = false, accept } = {}) {
   const files = await pickFiles({ multiple, accept });
   if (!files.length) return S.files[key] || [];
   await run("up:" + key, async () => {
-    for (const f of files) { const meta = await uploadFile(f, { scope: key.startsWith("priv:") ? "private" : "public" }); S.files[key] = multiple ? [...(S.files[key] || []), meta] : [meta]; }
+    let before = 0, after = 0;
+    for (const f of files) { const meta = await uploadFile(f, { scope: key.startsWith("priv:") ? "private" : "public" }); before += meta.original || meta.size; after += meta.size; delete meta.original; S.files[key] = multiple ? [...(S.files[key] || []), meta] : [meta]; }
+    if (before > after * 1.15 && before - after > 50 * 1024) toast(`Fayl siqildi: ${fmtSize(before)} → ${fmtSize(after)}`);
   }).catch(() => {});
   return S.files[key] || [];
 }
 /** File picker widget bound to S.files[key]. */
-export function fileBox(key, { label = "Fayl biriktirish", multiple = true, hint = "Rasm, PDF yoki Word, 3 MB gacha", accept = "image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx" } = {}) {
+export function fileBox(key, { label = "Fayl biriktirish", multiple = true, hint = `Rasm, PDF yoki Word, ${upMb()} MB gacha · avtomatik siqiladi`, accept = "image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx" } = {}) {
   const list = S.files[key] || [];
   const up = busy("up:" + key);
   return `<div class="col" style="gap:8px">
@@ -470,7 +475,10 @@ export const modalHead = (title, sub = "") => `<div class="row between" style="a
 /* ---------- session ---------- */
 export async function loadMe() { S.me = await api("/me"); }
 export function setToken(t) { S.token = t; if (t) store.set("sp.token", t); else store.del("sp.token"); }
-export function logout() { setToken(""); S.me = null; cache.clear(); S.f = {}; S.files = {}; S.modal = null; S.ui = {}; if (location.hash) location.hash = ""; render(); }
+/** Hooks run before logout (e.g. remove this browser's push subscription while the token still works). */
+export const beforeLogout = [];
+export async function logoutAll() { for (const f of beforeLogout) { try { await f(); } catch { /* ignore */ } } }
+export function logout() { logoutAll(); setToken(""); S.me = null; cache.clear(); S.f = {}; S.files = {}; S.modal = null; S.ui = {}; if (location.hash) location.hash = ""; render(); }
 
 /* ---------- shell & render ---------- */
 const $app = () => document.getElementById("app");

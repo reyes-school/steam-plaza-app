@@ -1,56 +1,69 @@
-# Steam Plaza 3-versiya — o‘zgarishlar ro‘yxati
+# Steam Plaza 4-versiya — o‘zgarishlar ro‘yxati
 
-## 1. Kiberxavfsizlik
-| Muammo (tahlildan) | Nima qilindi |
-|---|---|
-| Server `GET /%` kabi bitta so‘rov bilan qulardi | Barcha so‘rovlar `try/catch` ichida, noto‘g‘ri URL → 400. Slowloris uchun timeout'lar, server faqat `127.0.0.1` da (nginx orqali) |
-| Demo hisoblar `demo1234` bilan | `NODE_ENV=production` da demo yuklash o‘chiq va demo hisoblar bilan kirib bo‘lmaydi |
-| Login bruteforce himoyasi zaif | Telefon bo‘yicha bazada (6 urinish → 15 daqiqa blok, Vercel'da ham ishlaydi) + IP bo‘yicha cheklov |
-| DDoS / flood | IP bo‘yicha umumiy (600/daq) va yozish (180/daq) limit, fayl yuklash limiti, JSON hajm chegarasi, nginx `limit_req`/`limit_conn` tayyor konfiguratsiyasi (`deploy/`) |
-| Tokenni bekor qilib bo‘lmasdi | Parol almashtirish, admin yangi parol berishi, bloklash, filial o‘zgarishi → eski loginlar bekor. “Barcha qurilmalardan chiqish” tugmasi |
-| Zaif parollar (6 belgi) | Kamida 8 belgi, harf + raqam, oddiy parollar rad etiladi. Yaratiladigan parollar 10 belgili |
-| Ota-ona istalgan bola kartasini ko‘rardi | Faqat o‘z farzandi filialidagi bolalar; o‘qituvchi baholarida ota-ona ismlari yashirildi |
-| O‘qituvchi istalgan darsni egallardi | O‘rinbosarni faqat ma’muriyat tayinlaydi (Sinflar va jadval → O‘rinbosar tayinlash) |
-| Xavfsizlik sarlavhalari yo‘q | CSP, HSTS, X-Frame-Options, nosniff, Referrer-Policy, Permissions-Policy (server.js va vercel.json) |
-| Fayl turi tekshiruvi zaif | Fayl mazmuni turiga mos bo‘lishi shart (PDF/JPEG/PNG/GIF/WEBP/Office); Office fayllar faqat yuklab olinadi; sandbox CSP |
-| Audit log yo‘q | **Harakatlar jurnali**: kirishlar, noto‘g‘ri urinishlar, to‘lov/oylik/xarajat, o‘chirishlar, parol va foydalanuvchi o‘zgarishlari, o‘tgan darslarda baho o‘zgarishi (kim, qachon, IP) |
-| Cron kaliti oddiy solishtirish | timing-safe solishtirish, kamida 16 belgi |
-| Zaxira faqat bazani olardi | `deploy/backup.sh`: baza + yuklangan fayllar |
-| Android `allowBackup=true` | `false` |
-| `/api/health` baza xatosini ochib berardi | Faqat umumiy xabar |
-| SESSION_SECRET 16 belgi | Kamida 32 belgi |
+## 1. Har bir rol uchun demo hisob
+Parol hammasida **demo1234**. Kirish sahifasida “Demo hisoblar” bo‘limi chiqadi, bosilsa darhol o‘sha rol bilan kiradi.
 
-## 2. Filiallar (2 ta) × Maktab va Bog‘cha
-- Yangi jadval `branches`; sinf/guruh, o‘quvchi, to‘lov, oylik, xarajat, yangilik — filial va bo‘lim (maktab/bog‘cha) bilan.
-- Birinchi ishga tushishda 2 filial yaratiladi; eski ma’lumotlar 1-filial maktabiga o‘tadi (eski bazada sinab ko‘rildi).
-- **Buxgalter faqat o‘z filialini ko‘radi** — server darajasida (boshqa filial so‘ralsa 403). Buxgalter qo‘shishda filial majburiy.
-- Menejerga filial biriktirilsa — faqat o‘sha filial; biriktirilmasa — barchasi.
-- Barcha ro‘yxat va hisobotlarda filial / bo‘lim filtri (bosh admin uchun).
+| Rol | Telefon | Nima ko‘rinadi |
+|---|---|---|
+| Bosh admin | +998 90 700 00 00 | Hamma filiallar, umumiy hisobot |
+| Menejer | +998 90 700 00 01 | Barcha filiallar |
+| Menejer | +998 90 700 00 04 | Faqat 2-filial |
+| Buxgalter | +998 90 700 00 02 | Faqat 1-filial moliyasi |
+| Buxgalter | +998 90 700 00 03 | Faqat 2-filial moliyasi |
+| O‘qituvchi | +998 90 700 10 01 | 1-filial, 5-A sinf rahbari |
+| O‘qituvchi | +998 90 700 10 02 | 2-filial, 5-B sinf rahbari |
+| Ota-ona | +998 91 500 00 00 | 1-filial maktab (a’lochi o‘quvchi) |
+| Ota-ona | +998 91 500 00 48 | 1-filial bog‘cha |
 
-## 3. Har bir rol uchun alohida panel
-- **Bosh admin**: kirganda birinchi **Umumiy hisobot** — butun tashkilot (kirim, chiqim, foyda, o‘quvchilar, qarz) → maktab va bog‘cha jami → har bir filial va uning ichida maktab / bog‘cha. Oy tanlash, filialdan to‘g‘ridan-to‘g‘ri o‘quvchilar / kirim-chiqim / hisobotga o‘tish. PDF oylik hisobotda filial va bo‘limlar jadvali.
-- Bosh admin menyusi: Filiallar, Harakatlar jurnali, Kelmaslik xabarlari qo‘shildi.
-- **Buxgalter**: o‘z filiali moliya paneli (kirim/chiqim/foyda/qarz, maktab va bog‘cha bo‘yicha, eng katta qarzdorlar).
-- **Menejer**: filial bo‘yicha o‘quv paneli, bugun kelmaydiganlar ogohlantirishi.
-- **O‘qituvchi**: bugun kelmaydigan o‘quvchilar ro‘yxati, dars sahifasida “ota-ona xabar bergan” belgisi.
-- **Ota-ona**: “Kela olmaydi” bo‘limi.
+- Yuklash: `npm run demo` (yoki bosh admin → Sozlamalar → Demo ma’lumotlar). Demo ichida bitta “kela olmaydi” xabari ham bor.
+- Xavfsizlik: `NODE_ENV=production` bo‘lsa demo ro‘yxat chiqmaydi va demo hisoblar bilan kirib bo‘lmaydi. Sinov serverida `ALLOW_DEMO=1` qo‘yib yoqiladi.
 
-## 4. “Farzandim kela olmaydi”
-Ota-ona bosh sahifada bir bosishda yoki alohida bo‘limda: sana(lar), sabab turi (kasal, oilaviy, safar, boshqa), izoh. Bildirishnoma darhol: sinf rahbari/tarbiyachi, o‘sha kunlari dars beradigan o‘qituvchilar, filial menejeri va bosh admin. Ma’muriyat “Ko‘rdim” deb belgilaydi; ota-ona boshlanmagan xabarni bekor qila oladi.
+## 2. Ma’lumotlarni shifrlash (AES-256-GCM)
+- **Barcha yuklangan fayllar** shifrlangan holda saqlanadi — bazani yoki diskni o‘g‘irlagan odam pasport, metrika, tibbiy ma’lumotnomani ocha olmaydi.
+- **Shaxsiy maydonlar**: pasport, manzil, sog‘liq, izoh, qo‘shimcha telefon, tug‘ilgan joy/sana, guvohnoma, ish joyi.
+- Push kalitlari ham shifrlangan.
+- Eski ma’lumotlar: `npm run encrypt`; kalit almashtirish: `npm run encrypt -- --rekey`.
+- Telefon va ism login hamda qidiruv uchun ochiq qoladi.
 
-## 5. Tekshiruv
-- Avtomatik API testlari kengaytirildi (`npm test`): filial cheklovlari, buxgalter izolyatsiyasi, kelmaslik xabari va bildirishnomalar, token bekor qilinishi, zaif parol, o‘rinbosar, soxta fayl turi, server qulamasligi, audit log — **hammasi o‘tdi**.
-- Eski (2-versiya) bazani yangilash sinab ko‘rildi.
-- Brauzerda (kompyuter va telefon o‘lchami) bosh admin, buxgalter, o‘qituvchi va ota-ona panellari tekshirildi — JavaScript xatolari yo‘q.
-- Mobil ilova ichidagi web fayllar yangilandi (Android versionCode 2 / 1.1).
+## 3. Fayllarni siqish
+- Rasmlar serverda qayta siqiladi: eng katta tomoni 2000 px, burilish to‘g‘rilanadi, GPS/metama’lumot o‘chiriladi.
+- Skaner PDF ichidagi rasmlar qayta siqiladi.
+- Sinov natijasi: 3,4 MB foto → 258 KB, 3,4 MB PNG → 528 KB, 6,7 MB skaner PDF → 348 KB.
+- Fayl chegarasi o‘z serverda 3 MB dan **10 MB** ga oshirildi (siqilgandan keyin baribir kichik saqlanadi). Vercel’da 3 MB.
+- Yuklangandan keyin “Fayl siqildi: 3,2 MB → 252 KB” xabari chiqadi.
 
-## 6. Ishga tushirishda nima qilish kerak
-1. `.env` ga: `NODE_ENV=production`, 32+ belgili `SESSION_SECRET`, `CRON_SECRET`.
-2. O‘z serverida: `deploy/nginx-steamplaza.conf`, `deploy/steamplaza-proxy.conf`, kunlik `deploy/backup.sh` (README 2-bo‘lim).
-3. Filiallar nomini va manzilini kiriting, buxgalterlarga filial biriktiring.
-4. Mavjud xodimlarning paroli 6–7 belgili bo‘lsa, ular ishlayveradi, lekin yangi parol berishda 8+ belgi talab qilinadi.
+## 4. O‘quvchi / o‘qituvchi PDF’ida hujjatlarning o‘zi
+- “Yuklangan hujjatlar” jadvali “Ilova 1, 2, …” raqami va holati bilan.
+- Keyin hujjatlarning o‘zi keladi:
+  - rasm va skanerlar alohida sahifada, sarlavhasi bilan;
+  - PDF hujjatlar to‘liq sahifalari bilan, har sahifa pastida “Ilova 3. Ota-ona pasporti · 1/2” belgisi bor.
+- Word/Excel fayllar faqat ro‘yxatda ko‘rsatiladi, chunki ularni PDF ichiga chizib bo‘lmaydi.
+- Parolli PDF bo‘lsa “Ochib bo‘lmadi (parol bilan himoyalangan)” deb yoziladi.
+- O‘qituvchi PDF’iga ham hujjatlar qo‘shildi. Ularni ma’muriyat ko‘radi, o‘qituvchi esa faqat o‘zinikini ko‘radi.
 
-## Keyingi bosqich (hali qilinmagan)
-- Mobil ilova: push-bildirishnomalar (FCM/APNs), tokenni Keychain/Keystore'da saqlash, do‘konlarga chiqarish.
-- Bog‘cha uchun alohida taomnoma va kun tartibi (hozir taomnoma va qo‘ng‘iroq vaqtlari umumiy).
-- 2FA / SMS orqali parolni tiklash, Click/Payme integratsiyasi.
+## 5. Web saytda bildirishnomalar
+- **Web Push**: profil yoki 🔔 oynasida “Yoqish” bosiladi. Shundan keyin sayt yopiq bo‘lsa ham kompyuter yoki telefonga xabar keladi: baho, kelmaslik xabari, yangilik va boshqalar.
+- Bildirishnoma bosilsa, kerakli sahifa ochiladi.
+- “Sinab ko‘rish” tugmasi bor. Chiqishda shu brauzerga xabar yuborish to‘xtaydi.
+- Sayt ochiq bo‘lsa 🔔 soni darhol yangilanadi (tekshirish 30 o‘rniga 20 soniyada).
+- Xavfsizlik: server faqat haqiqiy push xizmatlariga (Google, Mozilla, Apple, Microsoft) xabar yuboradi.
+
+## 6. Tekshiruv
+- `npm test` — barcha avvalgi testlar va 4-versiya uchun yangi testlar o‘tdi. Yangi testlar quyidagilarni tekshiradi:
+  - bazada `enc:v1` / `SPE1` shifrlangan saqlanadi, API esa ochiq qiymat qaytaradi;
+  - PNG siqiladi;
+  - skaner PDF’da sahifa bo‘lib chiqadi;
+  - noto‘g‘ri push manzili rad etiladi.
+- Push to‘liq zanjirda sinaldi: yuborish → shifrlangan xabar → qabul qiluvchi ochdi.
+- Brauzerda (kompyuter va telefon o‘lchami) kirish sahifasi, demo ro‘yxat, bildirishnoma oynasi tekshirildi — JavaScript xatolari yo‘q.
+- Kalit almashtirish (rekey) sinaldi. Noto‘g‘ri kalit bilan ma’lumot buzilmaydi, o‘tkazib yuboriladi.
+
+## 7. Ishga tushirishda nima qilish kerak
+1. `npm install` (yangi kutubxonalar: sharp, pdf-lib, web-push).
+2. `.env` ga `DATA_KEY=` (`openssl rand -hex 32`). **Kalitni alohida, xavfsiz joyda saqlang**: zaxira nusxani usiz ochib bo‘lmaydi.
+3. `npm run encrypt` — mavjud fayl va profillarni shifrlaydi (oldin `deploy/backup.sh` bilan zaxira oling).
+4. Sayt HTTPS’da bo‘lishi kerak (push uchun).
+5. Haqiqiy serverda `NODE_ENV=production` — demo o‘chadi. Demo uchun alohida sinov serveri tavsiya etiladi.
+
+## Keyingi bosqich
+- Mobil ilova: native push (FCM/APNs), tokenni Keychain/Keystore’da saqlash, do‘konlarga chiqarish.

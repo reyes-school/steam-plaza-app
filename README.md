@@ -184,3 +184,45 @@ O‘qituvchi endi boshqa o‘qituvchining darsini o‘zi boshlay olmaydi. **Sinf
 - **Harakatlar jurnali** (audit log): kirishlar va noto‘g‘ri urinishlar, to‘lov/oylik/xarajat, o‘chirishlar, foydalanuvchi va parol o‘zgarishlari, o‘tgan darslardagi baho o‘zgarishlari — kim, qachon, qaysi IP.
 - Zaxira: `deploy/backup.sh` baza bilan birga yuklangan fayllarni ham saqlaydi.
 - Shaxsiy ma’lumotlar: O‘zbekiston qonunchiligi bo‘yicha fuqarolarning shaxsiy ma’lumotlari O‘zbekistondagi serverda saqlanishi kerak — haqiqiy ishga tushirishni Vercel emas, O‘zbekistondagi VDS (2-bo‘lim) da qiling.
+
+## 4-versiya: demo hisoblar, shifrlash, fayl siqish, PDF ilovalar, brauzer bildirishnomalari
+
+### Demo hisoblar (sinov uchun)
+`npm run demo` (yoki Sozlamalar → Demo ma’lumotlar) har bir rol uchun hisob yaratadi, parol hammasida `demo1234`.
+Kirish sahifasida “Demo hisoblar” ro‘yxati chiqadi — bosilsa o‘sha rol bilan kiradi.
+
+| Rol | Telefon | Nima ko‘rinadi |
+|---|---|---|
+| Bosh admin | +998 90 700 00 00 | Hamma filiallar, umumiy hisobot |
+| Menejer | +998 90 700 00 01 | Barcha filiallar |
+| Menejer | +998 90 700 00 04 | Faqat 2-filial |
+| Buxgalter | +998 90 700 00 02 | Faqat 1-filial |
+| Buxgalter | +998 90 700 00 03 | Faqat 2-filial |
+| O‘qituvchi | +998 90 700 10 01 | 1-filial, 5-A sinf rahbari |
+| O‘qituvchi | +998 90 700 10 02 | 2-filial, 5-B sinf rahbari |
+| Ota-ona | +998 91 500 00 00 | 1-filial maktab |
+| Ota-ona | +998 91 500 00 48 | 1-filial bog‘cha |
+
+`NODE_ENV=production` bo‘lsa demo o‘chiq: ro‘yxat chiqmaydi, demo hisoblar bilan kirib bo‘lmaydi. Alohida sinov serverida `ALLOW_DEMO=1` bilan yoqiladi.
+`npm run demo -- clear` — demo ma’lumotlarni o‘chiradi.
+
+### Shifrlash (AES-256-GCM)
+- Barcha yuklangan fayllar (hujjatlar, rasmlar, cheklar) bazada yoki diskda shifrlangan holda saqlanadi.
+- Shaxsiy maydonlar shifrlanadi: pasport, manzil, sog‘liq, izoh, qo‘shimcha telefon, tug‘ilgan joy/sana (profilda), guvohnoma, ish joyi.
+- Kalit: `.env` dagi `DATA_KEY` (`openssl rand -hex 32`). **Kalitni parollar menejerida yoki seyfda alohida saqlang** — kalitsiz zaxira nusxadan fayllarni ochib bo‘lmaydi.
+- Eski (4-versiyadan oldingi) ma’lumotlarni shifrlash: `npm run encrypt` (oylik cron ham asta-sekin shifrlaydi).
+- Kalitni almashtirish: yangisini `DATA_KEY` ga, eskisini `DATA_KEY_OLD` ga yozing → `npm run encrypt -- --rekey` → `DATA_KEY_OLD` ni olib tashlang.
+- Login uchun telefon raqam va ism shifrlanmaydi (qidiruv va kirish uchun kerak). Diskni to‘liq shifrlash (LUKS) va Neon’ning o‘z shifrlashi bilan birga ishlatish tavsiya etiladi.
+
+### Fayllarni siqish
+- Rasmlar: telefonda kichraytiriladi, serverda yana qayta siqiladi (eng katta tomon 2000 px, EXIF burilishi to‘g‘rilanadi, GPS va boshqa metama’lumotlar o‘chiriladi).
+- PDF: skaner qilingan sahifa rasmlari qayta siqiladi va fayl ixcham saqlanadi. Sinovda 6,7 MB skaner PDF → 0,35 MB, 3,4 MB foto → 0,26 MB.
+- Fayl chegarasi: o‘z serverda 10 MB, Vercel’da 3 MB (`MAX_FILE_MB`).
+
+### Profil PDF ichida hujjatlar
+O‘quvchi yoki o‘qituvchi PDF’ida “Yuklangan hujjatlar” jadvali “Ilova 1, 2, …” raqamlari bilan, keyin hujjatlarning o‘zi: rasm/skanerlar alohida sahifada, PDF hujjatlar sahifama-sahifa (har sahifada “Ilova N” belgisi). Word/Excel fayllar faqat ro‘yxatda ko‘rsatiladi. Hujjatlarni faqat ma’muriyat (va o‘qituvchi — o‘z PDF’ida) ko‘radi.
+
+### Brauzer bildirishnomalari (Web Push)
+- Profil yoki 🔔 oynasida “Yoqish” — sayt yopiq bo‘lsa ham kompyuter/telefonga bildirishnoma keladi (Chrome, Edge, Firefox; iPhone’da Safari → “Bosh ekranga qo‘shish” orqali).
+- Kalitlar avtomatik yaratiladi (bazada shifrlangan). Xohlasangiz `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY` ni o‘zingiz bering.
+- HTTPS shart (localhost bundan mustasno). Chiqishda shu brauzerga bildirishnoma yuborish to‘xtaydi.
